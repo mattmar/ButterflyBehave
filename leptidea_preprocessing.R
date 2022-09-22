@@ -5,8 +5,8 @@
 library("readxl")
 library(ggplot2)
 
-# Import excel sheet with infos on all trials
-my_data <- read_excel("/home/matteo/own_data/PoD/topics/sos/data_analysis/tested_specimens.xlsx", sheet=4)
+# Import excel sheet with infos on all trials (tested_specimens.xlsx)
+my_data <- read_excel("./tested_specimens.xlsx", sheet=4)
 
 # Derive transcript file names from folder (transcribed_recordings)
 setwd('./transcribed_recordings')
