@@ -147,6 +147,7 @@ lepagg2$time <- format(as.POSIXct(lepagg2$start_time), format = "%H:%M:%S")
 lepagg2$names <- rownames(lepagg2) #some ids in the rownames did not match with the ids in the file
 lepagg2 <- lepagg2 %>% separate(names, into = c("id", NA), sep = "_")
 lepagg2$id <- tolower(lepagg2$id)
+lepagg2$id <- ifelse(lepagg2$id == "lady45", "ledy45", lepagg2$id) #fix a spelling error
 
 ggplot(lepagg2,
 #ggplot(lepagg2[!is.na(as.numeric(lepagg2$y_position)), ], 
@@ -204,6 +205,60 @@ intersect(my_individuals$id, lepagg2$id)
 intersect(paste(my_individuals$id, my_individuals$day, my_individuals$time),
           paste(lepagg2$id, lepagg2$day, lepagg2$time))
 
-#something is wrong: 272 lines expected, 152 found
+lepagg2$link = paste(lepagg2$id, lepagg2$day, lepagg2$time)
+my_individuals$link <- paste(my_individuals$id, my_individuals$day, my_individuals$time)
+lepagg3 <- dplyr::left_join(lepagg2, my_individuals[,c(4:6)], by = c("link"), keep = FALSE)
 
-lepagg3 <- dplyr::inner_join(lepagg2, my_individuals)
+# LOTS OF NAs: must check why
+
+unique(subset(lepagg3, is.na(type))$id)
+
+
+ggplot(lepagg3,
+       #ggplot(lepagg3[!is.na(as.numeric(lepagg3$y_position)), ], 
+       aes(x_position, y_position)) +
+  geom_tile(aes(fill = as.numeric(duration)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 10) +
+  labs(x = "x", y = "y") +
+  guides(fill=guide_legend(title="seconds spent in the quadrant")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom") +
+  facet_grid(arena ~ type)
+
+
+ggplot(data = subset(lepagg3[!is.na(as.numeric(lepagg3$y_position)), ], arena == 1), 
+       aes(x_position, y_position)) +
+  geom_tile(aes(fill = as.numeric(duration)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 10, limits = c(0,1200)) +
+  labs(x = "x", y = "y", title = "Leptidea arena 1") +
+  guides(fill=guide_legend(title="seconds spent in the quadrant")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom") +
+  facet_grid(.~ type)
+
+ggplot(data = subset(lepagg3[!is.na(as.numeric(lepagg3$y_position)), ], arena == 2), 
+       aes(x_position, y_position)) +
+  geom_tile(aes(fill = as.numeric(duration)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 10, limits = c(0,1200)) +
+  labs(x = "x", y = "y", title = "Leptidea arena 2") +
+  guides(fill=guide_legend(title="seconds spent in the quadrant")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom") +
+  facet_grid(.~ type)
+
+ggplot(data = subset(lepagg3[!is.na(as.numeric(lepagg3$y_position)), ], arena == 3), 
+       aes(x_position, y_position)) +
+  geom_tile(aes(fill = as.numeric(duration)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 10, limits = c(0,1200)) +
+  labs(x = "x", y = "y", title = "Leptidea arena 3") +
+  guides(fill=guide_legend(title="seconds spent in the quadrant")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom") +
+  facet_grid(.~ type)
+
+
+ggplot(data = subset(lepagg3[!is.na(as.numeric(lepagg3$y_position)), ], arena == 4), 
+       aes(x_position, y_position)) +
+  geom_tile(aes(fill = as.numeric(duration)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 13, limits = c(0,1400)) +
+  labs(x = "x", y = "y", title = "Leptidea arena 4") +
+  guides(fill=guide_legend(title="seconds spent in the quadrant")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "bottom") +
+  facet_grid(.~ type)
+
