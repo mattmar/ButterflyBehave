@@ -6,14 +6,11 @@ library(readxl)
 library(ggplot2)
 
 # Import excel sheet with infos on all trials (tested_specimens.xlsx)
-my_data <- read_excel("./tested_specimens.xlsx", sheet="leptidea",
-                               col_types = c("text", "date", "date", 
-                                             "numeric", "numeric", "text", "text", 
-                                             "text", "text", "text", "text", "date"))
+my_data <- read_excel('/home/matteo/own_data/PoD/topics/sos/experimental_data/2022/tested_specimens.xlsx', sheet="leptidea")
 my_data$time <- format(as.POSIXct(my_data$time), format = "%H:%M:%S")
 
 # Derive transcript file names from folder (transcribed_recordings)
-setwd('./transcribed_recordings')
+setwd('/home/matteo/own_data/PoD/topics/sos/experimental_data/2022/transcribed_recordings')
 files <- list.files(recursive=T)
 files <- gsub(".*/","",files)
 files <- gsub("\\..*","",files)
@@ -82,7 +79,7 @@ data2 <- lapply(
 			}
 		}
 		)
-names(data2)<-names(data)
+names(data2) <- names(data)
 sapply(data2, ncol)
 
 ## Check that the behavioural categories are correct 

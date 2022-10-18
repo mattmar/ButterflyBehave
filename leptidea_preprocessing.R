@@ -6,31 +6,31 @@ library("readxl")
 library(ggplot2)
 
 # Import excel sheet with infos on all trials (tested_specimens.xlsx)
-my_data <- read_excel("./tested_specimens.xlsx", sheet=4)
+leptidea.trials <- read_excel("/home/matteo/own_data/PoD/topics/sos/experimental_data/2022/tested_specimens.xlsx", sheet="leptidea")
 
 # Derive transcript file names from folder (transcribed_recordings)
-setwd('./transcribed_recordings')
+setwd('/home/matteo/own_data/PoD/topics/sos/experimental_data/2022/transcribed_recordings/')
 files <- list.files(recursive=T)
 files <- gsub(".*/","",files)
 files <- gsub("\\..*","",files)
 
 # Transform in dataframe and everything in lowercase to avoid confusion
 files.df <- read.table(text=tolower(files),col.names=c("file"))
-transcript.df <- read.table(text=tolower(my_data$transcript), col.names="record",sep = ",")
-transcript.df <- read.table(text=transcript.df[which(!transcript.df$record%in%tolower(" ledo02_2_sm_20220623_151241_mm")),], col.names="record", sep = ",") # Remove a recording transcribed twice (by MM and MB)
+transcript.df <- read.table(text=tolower(leptidea.trials$transcript), col.names="record",sep = ",")
+transcript.df <- read.table(text=transcript.df, col.names="record", sep = ",") # Remove a recording transcribed twice (by MM and MB)
 
 # Match records from trial files with file names to select only files of interest 
 rmat <- transcript.df$record[!is.na(match(transcript.df$record,files.df$file))]
-my_data$frmatch <- transcript.df$record[match(transcript.df$record,files.df$file)]
+leptidea.trials$frmatch <- transcript.df$record[match(transcript.df$record,files.df$file)]
 
 # Save a file with data matching column for a visual check
-my_data$frmatch<-match(tolower(my_data$transcript), files.df$file)
-write.csv(my_data, "tested_specimens_matched.xlsx")
+leptidea.trials$frmatch<-match(tolower(leptidea.trials$transcript), files.df$file)
+write.csv(leptidea.trials, "tested_specimens_matched.xlsx")
 
 ### Data import and first visualisation 
 ## Reimport file list and format it
 dfiles <- list.files(pattern="*xlsx", recursive=TRUE, full.names = FALSE)
-dfiles1 <- dfiles[tolower(gsub(".*/|\\..*","",dfiles))%in%tolower(my_data$transcript)]
+dfiles1 <- dfiles[tolower(gsub(".*/|\\..*","",dfiles))%in%tolower(leptidea.trials$transcript)]
 
 #Check to see is there any residual Gonepteryx (not wanted for Leptidea)
 grep("Go",dfiles1)
@@ -45,7 +45,12 @@ data1 <- lapply(names(data), function(Y) {
 	message(Y)
 	x<-data[Y][[1]]
 	if(any(is.na(x$day))) {x <- x[-which(is.na(x$day)),]}
-	x$start_time <- as.POSIXct(paste(x$day,strftime(x$start_time, format="%H:%M:%S")))
+	if( any(grep("\\/",x$day) )) { 
+		x$day<- gsub("\\/", "-", x$day); 
+		strReverse <- function(x) {sapply(lapply(strsplit(x, "-"), rev), paste, collapse="-")}
+        x$day<-strReverse(x$day)
+	}
+	x$start_time <- as.POSIXct(paste(x$day,strftime(x$start_time, format="%H:%M:%S", tz = "UTC")))
 	x$activity_time <- as.POSIXlt(paste(x$day,strftime(x$activity_time, format="00:%M:%S")))
 	x$activity_time <- x$start_time + x$activity_time$hour*60*60 + x$activity_time$min*60 + x$activity_time$sec
 	x$length <- difftime(x$activity_time,x$start_time,units="secs")
@@ -103,16 +108,43 @@ badbehaviours # Those are bad bbehaviours! Fix them
 # checkcc$file <- dfiles1
 # write.csv(checkcc, "/home/matteo/own_data/PoD/topics/sos/data_analysis/checkcc.xlsx")
 
+nnn <- names(data2)
 ## Aggregate data for a first visualisation
-data3 <- lapply(data2, function(x) {
-	y <- aggregate(duration ~ behaviour+id+day+start_time+arena+quadrant,data=x,sum)
+data3 <- lapply(1:length(data2), function(x) {
+	y <- aggregate(duration ~ behaviour+id+day+start_time+arena+quadrant,data=data2[[x]],sum)
+	y$transcript <- tolower(nnn[x])
 	return(y)
 	})
 lepagg <- do.call(rbind.data.frame, data3)
 lepagg$duration <- as.integer(lepagg$duration)
 
-#Plot durations aggregated per behavioural category
-ggplot(lepagg, aes(x=behaviour, y=c(duration)/sum(duration)*100)) +
+# Merge dataset with overview data sheet using transcript name (to add type of test)
+leptidea.trials$transcript <- tolower(leptidea.trials$transcript)
+df.leptidea <- merge(lepagg, leptidea.trials[,c("type","transcript")], by="transcript", all.x=T)
+
+# Check if dates are correct
+#unique(row.names(df.leptidea[which(df.leptidea$start_time<as.POSIXct("2022-01-01")),]))
+#df.leptidea[which(df.leptidea$start_time<as.POSIXct("2022-01-01")),]
+
+# Add trial number to df.leptidea by using time
+trr <- aggregate(id~as.factor(start_time)+arena,df.leptidea,"unique",simplify=FALSE)
+names(trr)[1] <-"start_time"
+trr$id <- unlist(trr$id)
+trr <- trr[order(trr$id, partial=trr$start_time),]
+trr$n_trial <-NA
+for (g in unique(trr$id)) {
+	trr[trr$id%in%g,]$n_trial <- as.integer(droplevels(trr[trr$id%in%g,]$start_time))
+}
+
+# Here the final dataset for Leptidea
+df.leptidea <- merge(df.leptidea, trr[,-c(2)], by=c("id","start_time"),all.x=TRUE)
+
+# Plot durations aggregated per behavioural category
+ggplot(df.leptidea, aes(x=behaviour, y=c(duration)/sum(duration)*100)) +
 geom_col() +
 ylab("% of total time") +
 ggtitle(paste("# of Tests:",length(data),"# of Individuals:", length(unique(lepagg$id))))
+
+#TODO
+# Premiliminary Ladnscape analysis 
+# Shannon index
