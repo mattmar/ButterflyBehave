@@ -17,7 +17,7 @@ files <- gsub("\\..*","",files)
 # Transform in dataframe and everything in lowercase to avoid confusion
 files.df <- read.table(text=tolower(files),col.names=c("file"))
 transcript.df <- read.table(text=tolower(leptidea.trials$transcript), col.names="record",sep = ",")
-transcript.df <- read.table(text=transcript.df, col.names="record", sep = ",") # Remove a recording transcribed twice (by MM and MB)
+#transcript.df <- read.table(text=transcript.df, col.names="record", sep = ",") # Remove a recording transcribed twice (by MM and MB)
 
 # Match records from trial files with file names to select only files of interest 
 rmat <- transcript.df$record[!is.na(match(transcript.df$record,files.df$file))]
@@ -39,6 +39,9 @@ grep("Go",dfiles1)
 data <- lapply(dfiles1, read_excel)
 # Name the list with file name
 names(data) <- gsub("\\..*","",gsub(".*/","",dfiles1)) 
+
+#check strange names
+#files[which(as.vector(sapply(data, function(x) any(tolower(x$id)%in%"lady45"))))]
 
 ## Data processing to prepare them for analysis (derive duration and length, format date and time)
 data1 <- lapply(names(data), function(Y) {
@@ -138,6 +141,12 @@ for (g in unique(trr$id)) {
 
 # Here the final dataset for Leptidea
 df.leptidea <- merge(df.leptidea, trr[,-c(2)], by=c("id","start_time"),all.x=TRUE)
+
+# Add a column for proportional time for each behaviour relatively to total test duration
+df.leptidea <- merge(df.leptidea, aggregate(duration~id+n_trial, df.leptidea, "sum"), by=c("id","n_trial"))
+names(df.leptidea)[9] <-"duration"
+names(df.leptidea)[11] <-"duration_test"
+df.leptidea$prop_duration <- df.leptidea$duration/df.leptidea$duration_test
 
 # Plot durations aggregated per behavioural category
 ggplot(df.leptidea, aes(x=behaviour, y=c(duration)/sum(duration)*100)) +
