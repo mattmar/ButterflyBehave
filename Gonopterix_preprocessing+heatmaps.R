@@ -1,4 +1,4 @@
-#Initial processing Leptidea data for data analysis
+#Initial processing Gon. data for data analysis
 
 ### House-keeping
 ## Library
@@ -137,7 +137,7 @@ for (g in unique(trr$id)) {
   trr[trr$id%in%g,]$n_trial <- as.integer(droplevels(trr[trr$id%in%g,]$start_time))
 }
 
-# Here the final dataset for Leptidea
+# Here the final dataset
 df.gonepteryx <- merge(df.gonepteryx, trr[,-c(2)], by=c("id","start_time"),all.x=TRUE)
 
 # Plot durations aggregated per behavioural category
@@ -145,7 +145,3 @@ ggplot(df.gonepteryx, aes(x=behaviour, y=c(duration)/sum(duration)*100)) +
   geom_col() +
   ylab("% of total time") +
   ggtitle(paste("# of Tests:",length(data),"# of Individuals:", length(unique(lepagg$id))))
-
-#TODO
-# Premiliminary Ladnscape analysis 
-# Shannon index
