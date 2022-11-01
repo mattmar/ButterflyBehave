@@ -89,11 +89,59 @@ ggplot(df.leptidea, aes(x=behaviour2, y=c(duration)/sum(duration)*100)) +
 #####
 
 #creating a new tab with only the factors we want for the analysis of the effect of trials 
+<<<<<<< HEAD
 #data frame for testing duration 
 testtrial=aggregate(cbind(duration,prop_duration)~id+arena+n_trial+behaviour2+type+hp_presence,data=df.leptidea,"sum")
 testtrial <- subset(testtrial, behaviour2 !="ov")
 grep("ov",testtrial$behaviour2)
 testtrial <- subset(testtrial, type !="S_STM" | type !="S_LTM" | type !="NS_STM" | type !="NS_LTM")
+=======
+testtrial=data.frame(
+  id=df.leptidea$id,
+  behaviour=df.leptidea$behaviour2,
+  arena=df.leptidea$arena,
+  duration=df.leptidea$duration,
+  trial=df.leptidea$n_trial,
+  prop_duration=df.leptidea$prop_duration,
+  type=df.leptidea$type,
+  hp_presence=df.leptidea$hp_presence
+)                                               # SM: you keep presence/absence of hp, but not the quadrant; I'd keep them both (hp in A1 might be different from hp in C2)
+
+#data frame for testing duration 
+testtrial2=aggregate(testtrial,duration~id+arena+trial+behaviour+type+hp_presence,sum)
+testtrial2=testtrial2[order(testtrial2$id), ] 
+testtrial2<- subset(testtrial2, behaviour !="ov")
+grep("ov",testtrial2$behaviour)
+testtrial2<- subset(testtrial2, type !="S_STM")
+testtrial2<- subset(testtrial2, type !="S_LTM")
+testtrial2<- subset(testtrial2, type !="NS_STM")
+testtrial2<- subset(testtrial2, type !="NS_LTM")    # SM: so here you have just navigation, escape, rest, and feeding for regular (non-memory) trials, correct?
+
+#data frame for testing proportion
+testtrial3=aggregate(testtrial,prop_duration~id+arena+trial+behaviour+type+hp_presence,sum)
+testtrial3=testtrial3[order(testtrial2$id), ]
+testtrial3<- subset(testtrial3, behaviour !="ov")
+grep("ov",testtrial3$behaviour)
+testtrial3<- subset(testtrial3, type !="S_STM")
+testtrial3<- subset(testtrial3, type !="S_LTM")
+testtrial3<- subset(testtrial3, type !="NS_STM")
+testtrial3<- subset(testtrial3, type !="NS_LTM")    # SM: same here
+
+# Install and load the packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(ggpubr, tidyverse, DescTools, bestNormalize, lme4, lmerTest, Hmisc, data.table, lubridate, rptR, sjPlot, kableExtra, corrplot, PerformanceAnalytics, factoextra, knitr, psych, car)
+
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(lme4)
+library(lmerTest)
+library(sjPlot)
+library(rptR)
+library(ggpubr)
+library(psych)
+library(car)
+>>>>>>> 8ac5c321710e20fe4f66722a7baafe14ba5888b1
 
 ### Check data distributions
 # MM: Boxplots are useful to have an initial idea but they're hard to interpet.
@@ -108,6 +156,64 @@ ggplot(gplotrial, aes(x=value, fill=behaviour2)) +
   ylab("% of total time") +
   facet_wrap(~variable, scale="free_x")
 ###
+<<<<<<< HEAD
+=======
+#checking data distribution:
+hist(testtrial2$duration)
+hist(testtrial3$prop_duration)
+
+#trial number as a factor 
+testtrial2$trial=as.factor(testtrial2$trial)
+testtrial3$trial=as.factor(testtrial3$trial)
+
+ggplot(testtrial2, aes(trial, y=duration)) +
+  geom_boxplot() +
+  ylab("% of total time") +
+  facet_wrap(.~behaviour, ncol=3, scales = "free_y")
+
+ggplot(testtrial3, aes(trial, y=prop_duration)) +
+  geom_boxplot() +
+  ylab("% of total time") +
+  facet_wrap(.~behaviour, ncol=3, scales = "free_y")
+#####
+
+#models I tested without normalizing that don't work 
+#####
+
+mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = inverse.gaussian(link = "log"))
+shapiro.test(resid(mod1))
+#p-value < 2.2e-16
+hist(resid(mod1))
+#(was also tested with all the other possible link function of the inverse.gaussian)
+#(nothing worked)
+
+mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = binomial(link = "log"))
+#not working (tested with all possible link)
+
+mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = quasibinomial(link = "logit"))
+#why quasibinomial function cannot be used with glmer? 
+mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family =quasipoisson(link = "log"))
+#quasipoisson neither? 
+
+##could you explain why we cannot use "quasi" family for glmer?  # SM: because the package "glmer" does not have them implemented: also, quasi-poisson is quite error-prone, so I usually prefer a neg.binomial 
+
+##Gamma ditribution don't work neither 
+#gives too high p-values for the coefficients of the model
+#that are not coherent with plots in descriptive analysis 
+mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = Gamma(link = "log"))
+shapiro.test(resid(mod1))
+#p-value = 0.5796
+hist(resid(mod1))
+summary(mod1)
+#very highly significant p values ==> weird, not in accordance with plots   
+#probably not good                                              # SM: this model is probably over-parametrised: it fits the data super well (as you saw) but it's not reliable
+
+mod2=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = poisson(link="sqrt"))
+shapiro.test(resid(mod2))
+#p-value = 2.288e-09 
+hist(resid(mod2))
+#still no normality, tested with other link function of poisson family ==> don't work
+>>>>>>> 8ac5c321710e20fe4f66722a7baafe14ba5888b1
 
 ### Modelling absolute behavioural durations
 # MM: We want to test trial number as a continuous variables since we are not very interested in differences between single trials (eg, 3 vs 4 or 5 vs 2).
@@ -165,7 +271,7 @@ hist(testtrial3$prop_duration)
 bestNormalize(testtrial2$duration)
 #best option according to the function: "orderNorm" 
 bestNormalize(testtrial3$prop_duration)
-#best option according to the function: "orderNorm" too 
+#best option according to the function: "orderNorm" too  
 
 #Normalisation of data 
 duration <- orderNorm(testtrial2$duration)
