@@ -120,6 +120,7 @@ data3 <- lapply(1:length(data2), function(x) {
 	})
 lepagg <- do.call(rbind.data.frame, data3)
 lepagg$duration <- as.integer(lepagg$duration)
+lepagg$id <- tolower(lepagg$id)
 
 # Merge dataset with overview data sheet using transcript name (to add type of test)
 leptidea.trials$transcript <- tolower(leptidea.trials$transcript)

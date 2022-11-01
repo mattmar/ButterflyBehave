@@ -1,174 +1,32 @@
-#Initial processing Leptidea data for data analysis
+# Install and load the packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(ggpubr, tidyverse, DescTools, bestNormalize, lme4, lmerTest, Hmisc, data.table, lubridate, rptR, sjPlot, kableExtra, corrplot, PerformanceAnalytics, factoextra, knitr, psych, car)
 
-setwd("~/Cours UCL/Memoire papillons")
-### House-keeping
-## Library
-library("readxl")
-library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(lme4)
+library(lmerTest)
+library(sjPlot)
+library(rptR)
+library(ggpubr)
+library(psych)
+library(car)
+library(sjPlot)
+library(sjmisc)
 
-#pre-processing 
-#####
-# Import excel sheet with infos on all trials (tested_specimens.xlsx)
-leptidea.trials <- read_excel("./tested_specimens.xlsx", sheet="leptidea")
-
-# Derive transcript file names from folder (transcribed_recordings)
-setwd('./transcribed_recordings')
-files <- list.files(recursive=T)
-files <- gsub(".*/","",files)
-files <- gsub("\\..*","",files)
-
-# Transform in dataframe and everything in lowercase to avoid confusion
-files.df <- read.table(text=tolower(files),col.names=c("file"))
-transcript.df <- read.table(text=tolower(leptidea.trials$transcript), col.names="record",sep = ",")
-transcript.df <- read.table(text=transcript.df[which(!transcript.df$record%in%tolower(" ledo02_2_sm_20220623_151241_mm")),], col.names="record", sep = ",") 
-# Remove a recording transcribed twice (by MM and MB)
-
-# Match records from trial files with file names to select only files of interest 
-rmat <- transcript.df$record[!is.na(match(transcript.df$record,files.df$file))]
-leptidea.trials$frmatch <- transcript.df$record[match(transcript.df$record,files.df$file)]
-
-# Save a file with data matching column for a visual check
-leptidea.trials$frmatch<-match(tolower(leptidea.trials$transcript), files.df$file)
-write.csv(leptidea.trials, "tested_specimens_matched.xlsx")
-
-### Data import and first visualisation 
-## Reimport file list and format it
-dfiles <- list.files(pattern="*xlsx", recursive=TRUE, full.names = FALSE)
-dfiles1 <- dfiles[tolower(gsub(".*/|\\..*","",dfiles))%in%tolower(leptidea.trials$transcript)]
-
-#Check to see is there any residual Gonepteryx (not wanted for Leptidea)
-grep("Go",dfiles1)
-
-## Import all selected transcript sheets in a list in R
-data <- lapply(dfiles1, read_excel)
-# Name the list with file name
-names(data) <- gsub("\\..*","",gsub(".*/","",dfiles1)) 
-
-## Data processing to prepare them for analysis (derive duration and length, format date and time)
-data1 <- lapply(names(data), function(Y) {
-  message(Y)
-  x<-data[Y][[1]]
-  if(any(is.na(x$day))) {x <- x[-which(is.na(x$day)),]}
-  if( any(grep("\\/",x$day) )) { 
-    x$day<- gsub("\\/", "-", x$day); 
-    strReverse <- function(x) {sapply(lapply(strsplit(x, "-"), rev), paste, collapse="-")}
-    x$day<-strReverse(x$day)
-  }
-  x$start_time <- as.POSIXct(paste(x$day,strftime(x$start_time, format="%H:%M:%S", tz = "UTC")))
-  x$activity_time <- as.POSIXlt(paste(x$day,strftime(x$activity_time, format="00:%M:%S")))
-  x$activity_time <- x$start_time + x$activity_time$hour*60*60 + x$activity_time$min*60 + x$activity_time$sec
-  x$length <- difftime(x$activity_time,x$start_time,units="secs")
-  x$duration <- x$length - c(NA, x$length[1:(length(x$length)-1)])
-  x$duration <- c(x$duration[2:length(x$duration)], x$length[length(x$length)]-x$length[length(x$length)])
-  # Check for negative durations
-  if(any(x$duration<0)) {
-    print(as.data.frame(x[which(x$duration<0),]))
-    stop("duration is negative")
-  }
-  x$n <- 1
-  x$behaviour <- tolower(x$behaviour)
-  return(x)
-})
-
-## Check for missing columns
-cnames <- names(data1[[1]])
-sapply(data1, ncol)
-
-# Add missing columns if any is missing
-data2 <- lapply(
-  data1, function(x) {
-    if( ncol(x)!=13 ) {
-      if( any(!cnames %in% names(x)) )
-        message("missing column", names(x))
-      x[,cnames[which(!cnames%in%names(x))]] <- ""
-      x <- x[cnames]
-    } else{
-      return(x)
-    }
-  }
-)
-names(data2)<-names(data)
-sapply(data2, ncol)
-
-## Check that the behavioural categories are correct 
-behc <- tolower(c("EF", "NF", "FP", "FE", "WN", "WA", "WG", "RN", "RA", "RG", "LH", "OV"))
-
-badbehaviours <- unlist(lapply(
-  names(data2), function(Y) {
-    x <- data2[Y][[1]]
-    x$behaviour <- tolower(x$behaviour)
-    if( any(!x$behaviour%in%behc) ){
-      Z <- paste(Y, " unknown behaviour:", x$behaviour[which(!x$behaviour%in%behc)])
-    } else {
-      Z <- NULL
-    }
-    return(Z)
-  }
-))
-badbehaviours # Those are bad bbehaviours! Fix them
-
-# More checks (not very useful)
-# checkcc <- as.data.frame(do.call(rbind,lapply(data2, names)))
-# checkcc$file <- dfiles1
-# write.csv(checkcc, "/home/matteo/own_data/PoD/topics/sos/data_analysis/checkcc.xlsx")
-
-nnn <- names(data2)
-## Aggregate data for a first visualisation
-data3 <- lapply(1:length(data2), function(x) {
-  y <- aggregate(duration ~ behaviour+id+day+start_time+arena+quadrant,data=data2[[x]],sum)
-  y$transcript <- tolower(nnn[x])
-  return(y)
-})
-lepagg <- do.call(rbind.data.frame, data3)
-lepagg$duration <- as.integer(lepagg$duration)
-
-# Merge dataset with overview data sheet using transcript name (to add type of test)
-leptidea.trials$transcript <- tolower(leptidea.trials$transcript)
-df.leptidea <- merge(lepagg, leptidea.trials[,c("type","transcript")], by="transcript", all.x=T)
-
-# Check if dates are correct
-#unique(row.names(df.leptidea[which(df.leptidea$start_time<as.POSIXct("2022-01-01")),]))
-#df.leptidea[which(df.leptidea$start_time<as.POSIXct("2022-01-01")),]
-
-# Add trial number to df.leptidea by using time
-trr <- aggregate(id~as.factor(start_time)+arena,df.leptidea,"unique",simplify=FALSE)
-names(trr)[1] <-"start_time"
-trr$id <- unlist(trr$id)
-trr <- trr[order(trr$id, partial=trr$start_time),]
-trr$n_trial <-NA
-for (g in unique(trr$id)) {
-  trr[trr$id%in%g,]$n_trial <- as.integer(droplevels(trr[trr$id%in%g,]$start_time))
-}
-
-# Here the final dataset for Leptidea
-df.leptidea <- merge(df.leptidea, trr[,-c(2)], by=c("id","start_time"),all.x=TRUE)
-
-# Add a column for proportional time for each behaviour relatively to total test duration
-df.leptidea <- merge(df.leptidea, aggregate(duration~id+n_trial, df.leptidea, "sum"), by=c("id","n_trial"))
-names(df.leptidea)[9] <-"duration"
-names(df.leptidea)[11] <-"duration_test"
-df.leptidea$prop_duration <- df.leptidea$duration/df.leptidea$duration_test
+# Import RDS Leptidea
+df.leptidea <- readRDS("df.leptidea.RDS")
 
 #column behaviour2 with grouped behaviours 
-df.leptidea$behaviour2 = as.character(df.leptidea$behaviour)
-df.leptidea$behaviour2=ifelse(df.leptidea$behaviour2 == "ef"|
-                                df.leptidea$behaviour2 == "fe"|
-                                df.leptidea$behaviour2 == "fp"|
-                                df.leptidea$behaviour2 == "lh"|
-                                df.leptidea$behaviour2 == "nf"|
-                                df.leptidea$behaviour2 == "ov",
-                              df.leptidea$behaviour2, "rest")
-df.leptidea$behaviour2=ifelse(df.leptidea$behaviour2 == "ef"|
-                                df.leptidea$behaviour2 == "fe"|
-                                df.leptidea$behaviour2 == "rest"|
-                                df.leptidea$behaviour2 == "lh"|
-                                df.leptidea$behaviour2 == "ov",
-                              df.leptidea$behaviour2, "nf")
+df.leptidea$behaviour2 <- factor(df.leptidea$behaviour)
+levels(df.leptidea$behaviour2) <- c("ef","fe","fe","nf","nf","ov","rest","rest","rest","nf","nf","nf")
+
+#Check for old behaviours
 grep("fp",df.leptidea$behaviour2)
 
 #add a column with host plant presence 
 quadrant=c("A1","A3","A5","B2","B4","C1","C5","D2","D4","E1","E3","E5")
-vect=as.vector(df.leptidea$quadrant)
 df.leptidea$hp_presence = ifelse(df.leptidea$quadrant %in% quadrant, "y", "n")
 
 collected=read_excel("./collected_specimens.xlsx", sheet="Sheet1")
@@ -178,7 +36,6 @@ collected=data.frame(
 )
 
 #####
-
 #first visualisation of behavioural data 
 #####
 
@@ -232,111 +89,74 @@ ggplot(df.leptidea, aes(x=behaviour2, y=c(duration)/sum(duration)*100)) +
 #####
 
 #creating a new tab with only the factors we want for the analysis of the effect of trials 
-testtrial=data.frame(
-  id=df.leptidea$id,
-  behaviour=df.leptidea$behaviour2,
-  arena=df.leptidea$arena,
-  duration=df.leptidea$duration,
-  trial=df.leptidea$n_trial,
-  prop_duration=df.leptidea$prop_duration,
-  type=df.leptidea$type,
-  hp_presence=df.leptidea$hp_presence
-)
-
 #data frame for testing duration 
-testtrial2=aggregate(testtrial,duration~id+arena+trial+behaviour+type+hp_presence,sum)
-testtrial2=testtrial2[order(testtrial2$id), ] 
-testtrial2<- subset(testtrial2, behaviour !="ov")
-grep("ov",testtrial2$behaviour)
-testtrial2<- subset(testtrial2, type !="S_STM")
-testtrial2<- subset(testtrial2, type !="S_LTM")
-testtrial2<- subset(testtrial2, type !="NS_STM")
-testtrial2<- subset(testtrial2, type !="NS_LTM")
+testtrial=aggregate(cbind(duration,prop_duration)~id+arena+n_trial+behaviour2+type+hp_presence,data=df.leptidea,"sum")
+testtrial <- subset(testtrial, behaviour2 !="ov")
+grep("ov",testtrial$behaviour2)
+testtrial <- subset(testtrial, type !="S_STM" | type !="S_LTM" | type !="NS_STM" | type !="NS_LTM")
 
-#data frame for testing proportion
-testtrial3=aggregate(testtrial,prop_duration~id+arena+trial+behaviour+type+hp_presence,sum)
-testtrial3=testtrial3[order(testtrial2$id), ]
-testtrial3<- subset(testtrial3, behaviour !="ov")
-grep("ov",testtrial3$behaviour)
-testtrial3<- subset(testtrial3, type !="S_STM")
-testtrial3<- subset(testtrial3, type !="S_LTM")
-testtrial3<- subset(testtrial3, type !="NS_STM")
-testtrial3<- subset(testtrial3, type !="NS_LTM")
-
-# Install and load the packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(ggpubr, tidyverse, DescTools, bestNormalize, lme4, lmerTest, Hmisc, data.table, lubridate, rptR, sjPlot, kableExtra, corrplot, PerformanceAnalytics, factoextra, knitr, psych, car)
-
-library(tidyverse)
-library(data.table)
-library(lubridate)
-library(lme4)
-library(lmerTest)
-library(sjPlot)
-library(rptR)
-library(ggpubr)
-library(psych)
-library(car)
-
+### Check data distributions
+# MM: Boxplots are useful to have an initial idea but they're hard to interpet.
+gplotrial <- reshape2::melt(testtrial, measure.vars=c("duration","prop_duration"))
+ggplot(gplotrial, aes(x=as.factor(n_trial), y=value)) +
+  geom_boxplot() +
+  ylab("% of total time") +
+  facet_grid(variable~behaviour2, scales = "free_y")
+# MM: Histograms are better, it seems that almost all our behaiours have distribution resembling count data, however resting time is problematic.
+ggplot(gplotrial, aes(x=value, fill=behaviour2)) +
+  geom_histogram(alpha=0.5) +
+  ylab("% of total time") +
+  facet_wrap(~variable, scale="free_x")
 ###
-#checking data distribution:
-hist(testtrial2$duration)
-hist(testtrial3$prop_duration)
 
-#trial number as a factor 
-testtrial2$trial=as.factor(testtrial2$trial)
-testtrial3$trial=as.factor(testtrial3$trial)
-
-ggplot(testtrial2, aes(trial, y=duration)) +
-  geom_boxplot() +
-  ylab("% of total time") +
-  facet_wrap(.~behaviour, ncol=3, scales = "free_y")
-
-ggplot(testtrial3, aes(trial, y=prop_duration)) +
-  geom_boxplot() +
-  ylab("% of total time") +
-  facet_wrap(.~behaviour, ncol=3, scales = "free_y")
+### Modelling absolute behavioural durations
+# MM: We want to test trial number as a continuous variables since we are not very interested in differences between single trials (eg, 3 vs 4 or 5 vs 2).
+# MM: I see that the 6 and 7th trial are only for 8 and 2 ID and this is going to create problems in the model, so let's aggregate 6 and 7 with 5
+aggregate(id ~ n_trial, testtrial, function(x) length(unique(x)))
+testtrial$n_trial[grep("6|7",testtrial$n_trial)] <- 5
+# MM: Absolute resting time is much higher than any other behaviour, the model will have issue to handle this
+aggregate(duration ~ n_trial+behaviour2, testtrial, "sum")
+# MM: It is a wise decision to remove it from the model and test it separately afterwards
+testtrial.noresting <- testtrial[-which(testtrial$behaviour2%in%"rest"),]
+# MM: Check if the count distribution is overdispered: if the variance >>> mean 
+mean(testtrial.noresting$duration)/var(testtrial.noresting$duration) # yes
+# MM: Better we use negative binomial GLMER; but let's verify this with AIC.
+mod_absd.poi=glmer(as.integer(duration) ~ n_trial*behaviour2+(1|arena/id), data = testtrial.noresting, family = "poisson")
+# MM: another way to check for overdispersion is to see if the residulas exceed by far -2,2.
+plot(fitted(mod_absd.poi), resid(mod_absd.poi), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Poisson'); abline(0,0)
+# MM: Confirmed that Poisson it's not appropriate. We have problem of convergence, may be due to the eccessive number of interactions
+mod_absd.nb=glmer.nb(as.integer(duration) ~ n_trial*behaviour2+(1|arena/id), data = testtrial.noresting, control=glmerControl(optimizer="bobyqa"))
+# MM: residuals pf NB look much better (not yet perfect)
+plot(fitted(mod_absd.nb), resid(mod_absd.nb), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+# MM: AIC says the same!
+AIC(mod_absd.poi,mod_absd.nb)
+# MM: NB is going to be our golden standard
+summary(mod_absd.nb)
+# MM: Arena does not have much important as a random effect (var~0), all the variability is absorbed by ID, we can thus remove it to make the model lighter.
+mod_absd.nb1 <- update(mod_absd.nb, . ~ . -(1|arena/id) + (1|id))
+plot(fitted(mod_absd.nb2), resid(mod_absd.nb2), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+summary(mod_absd.nb1)
+# As a general outcome, less time is spent in navigation than escape or feeding (makes sense)
+# Increasing the number of trials there is an increase in feeding but not navigation that remains stable
+# Trial per se decreases the time spent in any behaviour, but this needs to be interpreted considering the intercept and the interaction
+# We can see all this by plotting the model linear combinations
+# All terms and interactions
+theme_set(theme_sjplot())
+plot_model(mod_absd.nb1, type = "int", pred.type = c("fe"))
+# Just flights
+plot_model(mod_absd.nb1, type = "pred", terms=c("n_trial","behaviour2 [nf, ef]"), pred.type = c("fe"))
+# Trials
+plot_model(mod_absd.nb1, type = "pred", terms="n_trial", pred.type = c("fe"))
+#####
+# Now we can check what's going on with resting
+testtrial.resting <- testtrial[which(testtrial$behaviour2%in%"rest"),]
+mod_absd.nb.rest <- glmer.nb(as.integer(duration) ~ n_trial+(1|id), data = testtrial.resting, control=glmerControl(optimizer="bobyqa"))
+summary(mod_absd.nb.rest)
+# Trial per se decreases the time spent in resting as well, however the association is weak and unimportant
+# Overall we can say that the number of trials has a positive effect on time spent feeding while a negative effect for all other behaviours. Why?
 #####
 
-#models I tested without normalizing that don't work 
-#####
-
-mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = inverse.gaussian(link = "log"))
-shapiro.test(resid(mod1))
-#p-value < 2.2e-16
-hist(resid(mod1))
-#(was also tested with all the other possible link function of the inverse.gaussian)
-#(nothing worked)
-
-mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = binomial(link = "log"))
-#not working (tested with all possible link)
-
-mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = quasibinomial(link = "logit"))
-#why quasibinomial function cannot be used with glmer? 
-mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family =quasipoisson(link = "log"))
-#quasipoisson neither? 
-
-##could you explain why we cannot use "quasi" family for glmer? 
-
-##Gamma ditribution don't work neither 
-#gives too high p-values for the coefficients of the model
-#that are not coherent with plots in descriptive analysis 
-mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = Gamma(link = "log"))
-shapiro.test(resid(mod1))
-#p-value = 0.5796
-hist(resid(mod1))
-summary(mod1)
-#very highly significant p values ==> weird, not in accordance with plots 
-#probably not good 
-
-mod2=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = poisson(link="sqrt"))
-shapiro.test(resid(mod2))
-#p-value = 2.288e-09 
-hist(resid(mod2))
-#still no normality, tested with other link function of poisson family ==> don't work
-
-#####
-
+################## Old code #####################
 #test with lmer models, normalization of the data 
 #####
 hist(testtrial2$duration)
