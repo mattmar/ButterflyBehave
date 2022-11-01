@@ -130,11 +130,12 @@ df.gonepteryx <- merge(lepagg, gonepteryx.trials[,c("type","transcript")], by="t
 # Add trial number to df.gonepteryx by using time
 trr <- aggregate(id~as.factor(start_time)+arena,df.gonepteryx,"unique",simplify=FALSE)
 names(trr)[1] <-"start_time"
-trr$id <- unlist(trr$id)
+ trr$id <- unlist(trr$id)
+
 trr <- trr[order(trr$id, partial=trr$start_time),]
 trr$n_trial <-NA
 for (g in unique(trr$id)) {
-  trr[trr$id%in%g,]$n_trial <- as.integer(droplevels(trr[trr$id%in%g,]$start_time))
+ trr[trr$id%in%g,]$n_trial <- as.integer(droplevels(trr[trr$id%in%g,]$start_time))
 }
 
 # Here the final dataset
@@ -145,3 +146,109 @@ ggplot(df.gonepteryx, aes(x=behaviour, y=c(duration)/sum(duration)*100)) +
   geom_col() +
   ylab("% of total time") +
   ggtitle(paste("# of Tests:",length(data),"# of Individuals:", length(unique(lepagg$id))))
+
+
+# =======================
+#       HEATMAPS
+#========================
+library(readr)
+library(tidyverse)
+library(stringr)
+
+col1 = "#d0e3e2" 
+col2 = "#b00b1e"
+
+## relative heatmaps: time spent in quadrants as a proportion of the total trial time per individual
+## use average proportion of time?
+
+df.gonepteryx.grouped<- df.gonepteryx
+
+df.gonepteryx.grouped <- df.gonepteryx.grouped %>%
+  dplyr::filter(quadrant != "A2/A3" & quadrant != "A1/A2") %>% # two double quadrants; for now let's remove them. They are two "rn" from GoMa11 2022-05-17 14:38:00 (4 seconds) and GoMa12 2022-06-05 15:50:00 (153 seconds)
+  separate(quadrant, into = c("x_position", "y_position"), sep = 1, remove = FALSE, extra = "merge") %>%
+  dplyr::mutate(x_position = toupper(x_position))
+
+df.gonepteryx.grouped$id <- tolower(df.gonepteryx.grouped$id)
+
+df.gonepteryx.grouped$duration_weighted <- ifelse(grepl(c("[+]"),df.gonepteryx.grouped$y_position),
+                                           df.gonepteryx.grouped$duration*0.5, df.gonepteryx.grouped$duration)
+df.gonepteryx.grouped$duration_weighted <- ifelse(df.gonepteryx.grouped$y_position == "1+" | df.gonepteryx.grouped$y_position == "5+",
+                                           df.gonepteryx.grouped$duration*0.33, df.gonepteryx.grouped$duration_weighted)                                    
+df.gonepteryx.grouped$y_position_expanded <- as.numeric(str_extract_all(df.gonepteryx.grouped$y_position,"\\(?[0-9,.]+\\)?"))
+
+df.gonepteryx.grouped <- df.gonepteryx.grouped %>%
+  group_by(id, start_time, arena, n_trial) %>%
+  dplyr::mutate(trial_duration = sum(duration)) %>%
+  ungroup() %>%
+  dplyr:: mutate(duration_prop = duration/trial_duration) %>%
+  dplyr:: mutate(duration_weighted_prop = duration_weighted/trial_duration)
+
+
+df.gonepteryx.grouped.behaviours = df.gonepteryx.grouped %>%
+  group_by(behaviour, arena, x_position, y_position) %>%
+  summarise(global.proportion = mean(duration_prop, na.rm = TRUE))
+
+df.gonepteryx.grouped.behaviours.weighted = df.gonepteryx.grouped %>%
+  group_by(behaviour, arena, x_position, y_position_expanded) %>%
+  summarise(global.proportion = mean(duration_weighted_prop, na.rm = TRUE))
+
+df.gonepteryx.grouped.presence = df.gonepteryx.grouped %>%
+  group_by(arena, x_position, y_position) %>%
+  summarise(global.proportion = mean(duration_prop, na.rm = TRUE))
+
+df.gonepteryx.grouped.presence.weighted = df.gonepteryx.grouped %>%
+  group_by(arena, x_position, y_position_expanded) %>%
+  summarise(global.proportion = mean(duration_weighted_prop, na.rm = TRUE))
+
+# heatmaps for presence
+# weighted
+
+ggplot(data = df.gonepteryx.grouped.presence.weighted, 
+       aes(x_position, y_position_expanded)) +
+  geom_tile(aes(fill = as.numeric(global.proportion)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 10) +
+  labs(x = "x", y = "y",
+       title = "Gonopteryx, time spent (weighted)") +
+  guides(fill=guide_legend(title="time (trial proportion)")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  facet_wrap(arena~.)
+
+
+# heatmaps for some behaviours
+# weighted
+
+behaviours = c("nf", "ef", "fe")
+
+for(i in 1:length(behaviours)) {
+  plotdata <- subset(df.gonepteryx.grouped.behaviours.weighted, behaviour == behaviours[i])
+  graph <- ggplot(data = plotdata, 
+                  aes(x_position, y_position_expanded)) +
+    geom_tile(aes(fill = as.numeric(global.proportion)), colour = "white", na.rm = TRUE) +
+    scale_fill_gradient(low = col1, high = col2, n.breaks = 10) +
+    labs(x = "x", y = "y",
+         title = paste("Gonepteryx, behaviour: ", as.character(behaviours[i]), ", (weighted)",
+                       sep = "")) +
+    guides(fill=guide_legend(title="time (trial proportion)")) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    facet_wrap(arena~.)
+  print(graph)
+  rm(plotdata, graph)
+}
+
+# as ovideposition are point events, it is better to sum
+
+df.gonepteryx.count.ov = subset(df.gonepteryx.grouped, behaviour == "ov") %>%
+  group_by(arena, x_position, y_position_expanded) %>%
+  summarise(n.ov = n())
+
+ggplot(data = df.gonepteryx.count.ov, 
+       aes(x_position, y_position_expanded)) +
+  geom_tile(aes(fill = as.numeric(n.ov)), colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2, n.breaks = 5) +
+  labs(x = "x", y = "y",
+       title = "Gonepteryx, n. of ovideposition events") +
+  guides(fill=guide_legend(title="n. of ovideposition")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  facet_wrap(arena~.)
+
+
