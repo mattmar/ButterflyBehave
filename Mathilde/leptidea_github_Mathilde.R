@@ -241,7 +241,7 @@ testtrial=data.frame(
   prop_duration=df.leptidea$prop_duration,
   type=df.leptidea$type,
   hp_presence=df.leptidea$hp_presence
-)
+)                                               # SM: you keep presence/absence of hp, but not the quadrant; I'd keep them both (hp in A1 might be different from hp in C2)
 
 #data frame for testing duration 
 testtrial2=aggregate(testtrial,duration~id+arena+trial+behaviour+type+hp_presence,sum)
@@ -251,7 +251,7 @@ grep("ov",testtrial2$behaviour)
 testtrial2<- subset(testtrial2, type !="S_STM")
 testtrial2<- subset(testtrial2, type !="S_LTM")
 testtrial2<- subset(testtrial2, type !="NS_STM")
-testtrial2<- subset(testtrial2, type !="NS_LTM")
+testtrial2<- subset(testtrial2, type !="NS_LTM")    # SM: so here you have just navigation, escape, rest, and feeding for regular (non-memory) trials, correct?
 
 #data frame for testing proportion
 testtrial3=aggregate(testtrial,prop_duration~id+arena+trial+behaviour+type+hp_presence,sum)
@@ -261,7 +261,7 @@ grep("ov",testtrial3$behaviour)
 testtrial3<- subset(testtrial3, type !="S_STM")
 testtrial3<- subset(testtrial3, type !="S_LTM")
 testtrial3<- subset(testtrial3, type !="NS_STM")
-testtrial3<- subset(testtrial3, type !="NS_LTM")
+testtrial3<- subset(testtrial3, type !="NS_LTM")    # SM: same here
 
 # Install and load the packages
 if (!require("pacman")) install.packages("pacman")
@@ -316,7 +316,7 @@ mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, famil
 mod1=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family =quasipoisson(link = "log"))
 #quasipoisson neither? 
 
-##could you explain why we cannot use "quasi" family for glmer? 
+##could you explain why we cannot use "quasi" family for glmer?  # SM: because the package "glmer" does not have them implemented: also, quasi-poisson is quite error-prone, so I usually prefer a neg.binomial 
 
 ##Gamma ditribution don't work neither 
 #gives too high p-values for the coefficients of the model
@@ -326,8 +326,8 @@ shapiro.test(resid(mod1))
 #p-value = 0.5796
 hist(resid(mod1))
 summary(mod1)
-#very highly significant p values ==> weird, not in accordance with plots 
-#probably not good 
+#very highly significant p values ==> weird, not in accordance with plots   
+#probably not good                                              # SM: this model is probably over-parametrised: it fits the data super well (as you saw) but it's not reliable
 
 mod2=glmer(duration ~ behaviour*trial+(1|id)+(1|arena), data = testtrial2, family = poisson(link="sqrt"))
 shapiro.test(resid(mod2))
@@ -345,7 +345,7 @@ hist(testtrial3$prop_duration)
 bestNormalize(testtrial2$duration)
 #best option according to the function: "orderNorm" 
 bestNormalize(testtrial3$prop_duration)
-#best option according to the function: "orderNorm" too 
+#best option according to the function: "orderNorm" too  
 
 #Normalisation of data 
 duration <- orderNorm(testtrial2$duration)
