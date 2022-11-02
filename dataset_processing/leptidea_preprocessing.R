@@ -64,6 +64,10 @@ data1 <- lapply(names(data), function(Y) {
 		print(as.data.frame(x[which(x$duration<0),]))
 		stop("duration is negative")
 	}
+	if(any(x$duration>60*20)) {
+		print(as.data.frame(x[which(x$duration<0),]))
+		stop("duration is over 20 minutes")
+	}
 	x$n <- 1
 	x$behaviour <- tolower(x$behaviour)
 	return(x)
@@ -140,7 +144,7 @@ for (g in unique(trr$id)) {
 	trr[trr$id%in%g,]$n_trial <- as.integer(droplevels(trr[trr$id%in%g,]$start_time))
 }
 
-# Here the final dataset for Leptidea
+# Merge with trial number
 df.leptidea <- merge(df.leptidea, trr[,-c(2)], by=c("id","start_time"),all.x=TRUE)
 
 # Add a column for proportional time for each behaviour relatively to total test duration
@@ -149,6 +153,9 @@ names(df.leptidea)[9] <-"duration"
 names(df.leptidea)[11] <-"duration_test"
 df.leptidea$prop_duration <- df.leptidea$duration/df.leptidea$duration_test
 
+# Here the final dataset for Leptidea
+saveRDS(df.leptidea,"df.leptidea.RDS")
+
 # Plot durations aggregated per behavioural category
 ggplot(df.leptidea, aes(x=behaviour, y=c(duration)/sum(duration)*100)) +
 geom_col() +
@@ -156,5 +163,3 @@ ylab("% of total time") +
 ggtitle(paste("# of Tests:",length(data),"# of Individuals:", length(unique(lepagg$id))))
 
 #TODO
-# Premiliminary Ladnscape analysis 
-# Shannon index

@@ -20,7 +20,7 @@ df.leptidea <- readRDS("df.leptidea.RDS")
 
 #column behaviour2 with grouped behaviours 
 df.leptidea$behaviour2 <- factor(df.leptidea$behaviour)
-levels(df.leptidea$behaviour2) <- c("ef","fe","fe","nf","nf","ov","rest","rest","rest","nf","nf","nf")
+levels(df.leptidea$behaviour2) <- c("ef","fe","fe","ov","nf","ov","rest","rest","rest","nf","nf","nf")
 
 #Check for old behaviours
 grep("fp",df.leptidea$behaviour2)
@@ -121,11 +121,11 @@ testtrial.noresting <- testtrial[-which(testtrial$behaviour2%in%"rest"),]
 # MM: Check if the count distribution is overdispered: if the variance >>> mean 
 mean(testtrial.noresting$duration)/var(testtrial.noresting$duration) # yes
 # MM: Better we use negative binomial GLMER; but let's verify this with AIC.
-mod_absd.poi=glmer(as.integer(duration) ~ n_trial*behaviour2+(1|arena/id), data = testtrial.noresting, family = "poisson")
+mod_absd.poi=glmer(as.integer(duration) ~ n_trial*behaviour2+(1|arena)+(1|id), data = testtrial.noresting, family = "poisson")
 # MM: another way to check for overdispersion is to see if the residulas exceed by far -2,2.
 plot(fitted(mod_absd.poi), resid(mod_absd.poi), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Poisson'); abline(0,0)
 # MM: Confirmed that Poisson it's not appropriate. We have problem of convergence, may be due to the eccessive number of interactions
-mod_absd.nb=glmer.nb(as.integer(duration) ~ n_trial*behaviour2+(1|arena/id), data = testtrial.noresting, control=glmerControl(optimizer="bobyqa"))
+mod_absd.nb=glmer.nb( as.integer(duration) ~ n_trial*behaviour2+(1|arena)+(1|id), data = testtrial.noresting, control=glmerControl(optimizer="bobyqa") )
 # MM: residuals pf NB look much better (not yet perfect)
 plot(fitted(mod_absd.nb), resid(mod_absd.nb), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
 # MM: AIC says the same!
@@ -133,8 +133,8 @@ AIC(mod_absd.poi,mod_absd.nb)
 # MM: NB is going to be our golden standard
 summary(mod_absd.nb)
 # MM: Arena does not have much important as a random effect (var~0), all the variability is absorbed by ID, we can thus remove it to make the model lighter.
-mod_absd.nb1 <- update(mod_absd.nb, . ~ . -(1|arena/id) + (1|id))
-plot(fitted(mod_absd.nb2), resid(mod_absd.nb2), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+mod_absd.nb1 <- glmer.nb( as.integer(duration) ~ n_trial*behaviour2+(1|id), data = testtrial.noresting, control=glmerControl(optimizer="bobyqa") )
+plot(fitted(mod_absd.nb1), resid(mod_absd.nb), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
 summary(mod_absd.nb1)
 # As a general outcome, less time is spent in navigation than escape or feeding (makes sense)
 # Increasing the number of trials there is an increase in feeding but not navigation that remains stable
@@ -154,7 +154,7 @@ mod_absd.nb.rest <- glmer.nb(as.integer(duration) ~ n_trial+(1|id), data = testt
 summary(mod_absd.nb.rest)
 # Trial per se decreases the time spent in resting as well, however the association is weak and unimportant
 # Overall we can say that the number of trials has a positive effect on time spent feeding while a negative effect for all other behaviours. Why?
-#####
+###
 
 ################## Old code #####################
 #test with lmer models, normalization of the data 
