@@ -1,6 +1,6 @@
 # Install and load the packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(ggpubr, tidyverse, DescTools, bestNormalize, lme4, lmerTest, Hmisc, data.table, lubridate, rptR, sjPlot, kableExtra, corrplot, PerformanceAnalytics, factoextra, knitr, psych, car)
+#if (!require("pacman")) install.packages("pacman")
+#pacman::p_load(ggpubr, tidyverse, DescTools, bestNormalize, lme4, lmerTest, Hmisc, data.table, lubridate, rptR, sjPlot, kableExtra, corrplot, PerformanceAnalytics, factoextra, knitr, psych, car)
 
 library(tidyverse)
 library(data.table)
@@ -113,7 +113,7 @@ ggplot(gplotrial, aes(x=value, fill=behaviour2)) +
 # MM: We want to test trial number as a continuous variables since we are not very interested in differences between single trials (eg, 3 vs 4 or 5 vs 2).
 # MM: I see that the 6 and 7th trial are only for 8 and 2 ID and this is going to create problems in the model, so let's aggregate 6 and 7 with 5
 aggregate(id ~ n_trial, testtrial, function(x) length(unique(x)))
-testtrial$n_trial[grep("6|7",testtrial$n_trial)] <- 5
+testtrial$n_trial[grep("7",testtrial$n_trial)] <- 6
 # MM: Absolute resting time is much higher than any other behaviour, the model will have issue to handle this
 aggregate(duration ~ n_trial+behaviour2, testtrial, "sum")
 # MM: It is a wise decision to remove it from the model and test it separately afterwards
@@ -128,6 +128,7 @@ plot(fitted(mod_absd.poi), resid(mod_absd.poi), col='steelblue', pch=16, xlab='P
 mod_absd.nb=glmer.nb( as.integer(duration) ~ n_trial*behaviour2+(1|arena)+(1|id), data = testtrial.noresting, control=glmerControl(optimizer="bobyqa") )
 # MM: residuals pf NB look much better (not yet perfect)
 plot(fitted(mod_absd.nb), resid(mod_absd.nb), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+text(fitted(mod_absd.nb), resid(mod_absd.nb), label=mod_absd.nb@resp$y)
 # MM: AIC says the same!
 AIC(mod_absd.poi,mod_absd.nb)
 # MM: NB is going to be our golden standard

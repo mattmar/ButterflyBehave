@@ -64,7 +64,7 @@ data1 <- lapply(names(data), function(Y) {
 		print(as.data.frame(x[which(x$duration<0),]))
 		stop("duration is negative")
 	}
-	if(any(x$duration>60*20)) {
+	if(any(sum(x$duration)>60*20)) {
 		print(as.data.frame(x[which(x$duration<0),]))
 		stop("duration is over 20 minutes")
 	}
@@ -153,6 +153,7 @@ names(df.leptidea)[9] <-"duration"
 names(df.leptidea)[11] <-"duration_test"
 df.leptidea$prop_duration <- df.leptidea$duration/df.leptidea$duration_test
 
+df.leptidea[which(df.leptidea$duration_test>1200),]
 # Here the final dataset for Leptidea
 saveRDS(df.leptidea,"df.leptidea.RDS")
 
@@ -162,4 +163,4 @@ geom_col() +
 ylab("% of total time") +
 ggtitle(paste("# of Tests:",length(data),"# of Individuals:", length(unique(lepagg$id))))
 
-#TODO
+# TODO
