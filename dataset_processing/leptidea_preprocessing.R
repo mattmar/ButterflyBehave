@@ -59,6 +59,7 @@ data1 <- lapply(names(data), function(Y) {
 	x$length <- difftime(x$activity_time,x$start_time,units="secs")
 	x$duration <- x$length - c(NA, x$length[1:(length(x$length)-1)])
 	x$duration <- c(x$duration[2:length(x$duration)], x$length[length(x$length)]-x$length[length(x$length)])
+	x$cumtime <- cumsum(as.integer(x$duration))
 	# Check for negative durations
 	if(any(x$duration<0)) {
 		print(as.data.frame(x[which(x$duration<0),]))
@@ -118,7 +119,7 @@ badbehaviours # Those are bad bbehaviours! Fix them
 nnn <- names(data2)
 ## Aggregate data for a first visualisation
 data3 <- lapply(1:length(data2), function(x) {
-	y <- aggregate(duration ~ behaviour+id+day+start_time+arena+quadrant,data=data2[[x]],sum)
+	y <- aggregate(duration ~ behaviour+id+day+start_time+arena+quadrant+cumtime,data=data2[[x]],sum)
 	y$transcript <- tolower(nnn[x])
 	return(y)
 	})
@@ -149,8 +150,8 @@ df.leptidea <- merge(df.leptidea, trr[,-c(2)], by=c("id","start_time"),all.x=TRU
 
 # Add a column for proportional time for each behaviour relatively to total test duration
 df.leptidea <- merge(df.leptidea, aggregate(duration~id+n_trial, df.leptidea, "sum"), by=c("id","n_trial"))
-names(df.leptidea)[9] <-"duration"
-names(df.leptidea)[11] <-"duration_test"
+names(df.leptidea)[10] <-"duration"
+names(df.leptidea)[12] <-"duration_test"
 df.leptidea$prop_duration <- df.leptidea$duration/df.leptidea$duration_test
 
 df.leptidea[which(df.leptidea$duration_test>1200),]
