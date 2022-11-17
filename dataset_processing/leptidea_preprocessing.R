@@ -55,8 +55,9 @@ data1 <- lapply(names(data), function(Y) {
 	}
 	x$start_time <- as.POSIXct(paste(x$day,strftime(x$start_time, format="%H:%M:%S", tz = "UTC")))
 	x$activity_time <- as.POSIXlt(paste(x$day,strftime(x$activity_time, format="00:%M:%S")))
-	x$activity_time <- x$start_time + x$activity_time$hour*60*60 + x$activity_time$min*60 + x$activity_time$sec
+	x$activity_time <- x$start_time + x$activity_time$hour*60*60 + x$activity_time$min*60 + x$activity_time$sec +1
 	x$length <- difftime(x$activity_time,x$start_time,units="secs")
+	xh <- x[1,]; xh$activity_time <- xh$start_time; xh$length=0; xh$behaviour<-"INCAGE"; x <- rbind.data.frame(xh,x)
 	x$duration <- x$length - c(NA, x$length[1:(length(x$length)-1)])
 	x$duration <- c(x$duration[2:length(x$duration)], x$length[length(x$length)]-x$length[length(x$length)])
 	x$cumtime <- cumsum(as.integer(x$duration))
@@ -65,7 +66,7 @@ data1 <- lapply(names(data), function(Y) {
 		print(as.data.frame(x[which(x$duration<0),]))
 		stop("duration is negative")
 	}
-	if(any(sum(x$duration)>60*20)) {
+	if(any(sum(x$duration)>60*20+1)) {
 		print(as.data.frame(x[which(x$duration<0),]))
 		stop("duration is over 20 minutes")
 	}
@@ -95,7 +96,7 @@ names(data2)<-names(data)
 sapply(data2, ncol)
 
 ## Check that the behavioural categories are correct 
-behc <- tolower(c("EF", "NF", "FP", "FE", "WN", "WA", "WG", "RN", "RA", "RG", "LH", "OV"))
+behc <- tolower(c("EF", "NF", "FP", "FE", "WN", "WA", "WG", "RN", "RA", "RG", "LH", "OV", "INCAGE"))
 
 badbehaviours <- unlist(lapply(
 	names(data2), function(Y) {
@@ -154,7 +155,13 @@ names(df.leptidea)[10] <-"duration"
 names(df.leptidea)[12] <-"duration_test"
 df.leptidea$prop_duration <- df.leptidea$duration/df.leptidea$duration_test
 
-df.leptidea[which(df.leptidea$duration_test>1200),]
+# Redundat check for non allowed durations
+df.leptidea[which(df.leptidea$duration_test>1201),]
+
+# Order properly
+df.leptidea <- df.leptidea[order(df.leptidea$id, df.leptidea$n_trial,df.leptidea$cumtime),]
+head(df.leptidea)
+
 # Here the final dataset for Leptidea
 saveRDS(df.leptidea,"df.leptidea.RDS")
 
@@ -164,4 +171,6 @@ geom_col() +
 ylab("% of total time") +
 ggtitle(paste("# of Tests:",length(data),"# of Individuals:", length(unique(lepagg$id))))
 
-# TODO
+#Sanity check
+aggregate(id~n_trial,df.leptidea[!df.leptidea$type%in%c("S","NS"),],unique)
+#df.leptidea[df.leptidea$id%in%c("ledy02", "levir01"),]
