@@ -67,20 +67,30 @@ data33$Code_site=as.factor(data33$Code_site)
 ggplot(data33,aes(Code_site,y=cumm_area))+
   geom_boxplot()
 
+
+###### Survie
+data33$Code_site=as.factor(data33$Code_site)
+ggplot(data33,aes(Code_site,y=surv_days))+
+  geom_boxplot()
+
 ######## normalité des données
 install.packages("bestNormalize")
 library(bestNormalize)
 require(bestNormalize)
 bestNormalize(data33$abdomen)
 data33$abdomen=sqrt(data33$abdomen)
+bestNormalize(data33$cumm_area)
 
 
 hist(data33$Thorax)
 hist(data33$abdomen)
 hist(data33$cumm_area)
+hist(data33$surv_days)
+
 shapiro.test(data33$Thorax) # Distribution normal
 shapiro.test(data33$abdomen) # Distribution normal
-shapiro.test(data33$cumm_area) # Distribution normal
+shapiro.test(data33$cumm_area2) # Distribution pas très normal
+view(data33)
 
 bartlett.test(data33$Thorax, data33$Code_site) #pas assez de données dans certaines macro area
 bartlett.test(abdomen, data = data33)
@@ -93,11 +103,11 @@ bartlett.test(cumm_area, data = data33)
 
 ####### Anova
 anova_Thorax <- aov(Thorax ~ Code_site, data = data33)
-summary(anova_Thorax) #pas significatif
+summary(anova_Thorax) #il y a une tendance
 anova_abdomen <- aov(abdomen ~ Code_site, data = data33)
 summary(anova_abdomen) #pas significatif
 anova_cummarea <- aov(cumm_area ~ Code_site, data = data33)
-summary(anova_cummarea) # très significatif
+summary(anova_cummarea) # pas significatif
 
 ####### kruskal.test
 kruskal.test(Thorax ~ Code_site, data = data33) #pas significatif -> pas de différence des moyennes
@@ -110,20 +120,30 @@ kruskal.test(abdomen ~ Code_site, data = data33) #pas significatif -> pas de dif
 
 #correlation entre les données
 require(Hmisc)
-correlation <- rcorr(data11$Thorax,data33$Code_site, type = "spearman") ###Error in rcorr(Thorax, Code_site, type = "spearman") : could not find function "rcorr"
-correlation
 require(corrplot)
-corrplot(correlation$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
+correlation_thorax <- rcorr(data33$Thorax,data33$Code_site, type = "spearman") 
+corrplot(correlation_thorax$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
+
+
+correlation_abdomen <- rcorr(data33$abdomen,data33$Code_site, type = "spearman") 
+correlation_abdomen
+corrplot(correlation_abdomen$r, type="upper", order="hclust", p.mat=correlation_abdomen$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
+
+
+correlation_ailes <- rcorr(data33$cumm_area,data33$Code_site, type = "spearman") 
+correlation_ailes
+corrplot(correlation_ailes$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
+
+
+correlation_survie <- rcorr(data33$surv_days,data33$Code_site, type = "spearman")
+correlation_survie
+corrplot(correlation_thorax$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
 
 #chercher les valeurs extrêmes
 dotchart(data33$Thorax, main="Thorax", group=data33$Code_site)
 dotchart(data33$abdomen, main="abdomen", group=data33$Code_site)
 dotchart(data33$cumm_area, main="area", group=data33$Code_site)
 
-#normaliser les données
-require(bestNormalize)
-bestNormalize(data11$abdomen) ### Error in bestNormalize(data11$Thorax) : could not find function "bestNormalize"
-data11$abdomen_2 = (data11$abdomen - mean(data11$abdomen))/sd(data11$abdomen) # SM: rescale the data
 
 
 ################## Build the model ##################
@@ -131,34 +151,36 @@ data11$abdomen_2 = (data11$abdomen - mean(data11$abdomen))/sd(data11$abdomen) # 
 #######Thorax 
 #Explicative = Code_site, cumm_area, surv_days, abdomen, eggs
 
-Model_thorax1 = lmer(Thorax~Code_site+cumm_area+abdomen+surv_days+(1|Site), data = data11) 
+Model_thorax1 = lmer(Thorax~Code_site+cumm_area+abdomen+surv_days+(1|Site), data = data33) 
 car::Anova(Model_thorax1, type=2)
 summary(Model_thorax1)
-AIC(Model_thorax1) #45.78387
+AIC(Model_thorax1) #205.0069
 
-Model_thorax2 = lm(Thorax~Code_site+cumm_area+(abdomen*eggs)+surv_days, data = data11)
+Model_thorax2 = lm(Thorax~Code_site+cumm_area+abdomen+surv_days, data = data33)
 car::Anova(Model_thorax2, type=2)
 summary(Model_thorax2)
-AIC(Model_thorax2) #11.09548
+AIC(Model_thorax2) #
 
-Model_thorax3 = lm(Thorax~Code_site+cumm_area+abdomen+surv_days, data = data11)
+Model_thorax3 = lm(Thorax~Code_site+cumm_area+abdomen+surv_days, data = data33)
 car::Anova(Model_thorax3, type=2)
 summary(Model_thorax3)
-AIC(Model_thorax3) ##################13.03903
+AIC(Model_thorax3) #
 
-Model_thorax4 <-lm(Thorax~Code_site+(cumm_area*surv_days), data = data11)
+Model_thorax4 <-lm(Thorax~Code_site+(cumm_area*surv_days), data = data33)
 summary(M2)
-AIC(Model_thorax4)#52.617
+AIC(Model_thorax4)#
 
-Model_thorax5 = lm(Thorax~Code_site+cumm_area+abdomen, data = data11)
+Model_thorax5 = lm(Thorax~Code_site+cumm_area+abdomen, data = data33)
 car::Anova(Model_thorax5, type=2)
 summary(Model_thorax5)
-AIC(Model_thorax5) #21.36181
+AIC(Model_thorax5)# 204.1246
 
-Model_thorax6 = lm(Thorax~Code_site+abdomen+surv_days, data = data11)
-car::Anova(Model_thorax3, type=2)
-summary(Model_thorax3)
-AIC(Model_thorax6) #23.55438
+Model_thorax6 = lm(Thorax~cumm_area+abdomen, data = data33)
+car::Anova(Model_thorax6, type=2)
+summary(Model_thorax6)
+AIC(Model_thorax6) ################ 200.7993
+
+
 
 
 
@@ -166,64 +188,76 @@ AIC(Model_thorax6) #23.55438
 #Explicative = Code_site, cumm_area, surv_days, thorax, eggs
 
 
-Model_abdomen1 <- lm(abdomen~Code_site+surv_days+(Thorax*cumm_area), data = data11)
+Model_abdomen1 <- lm(abdomen~Code_site+surv_days+(Thorax*cumm_area), data = data33)
 car::Anova(Model_abdomen1, type=2)
 summary(Model_abdomen1)
-AIC(Model_abdomen1) #-1.601178
+AIC(Model_abdomen1) #105.7307
 
-Model_abdomen2 <- lm(abdomen~Code_site+Thorax, data = data11)
+Model_abdomen2 <- lm(abdomen~Code_site+Thorax, data = data33)
 car::Anova(Model_abdomen2, type=2)
 summary(Model_abdomen2)
-AIC(Model_abdomen2) ################## -10.84579
+AIC(Model_abdomen2) # 119.7418
 
-Model_abdomen3 <- lm(abdomen~(Thorax*cumm_area), data = data11)
+Model_abdomen3 <- lm(abdomen~Code_site+Thorax+cumm_area, data = data33)
 car::Anova(Model_abdomen3, type=2)
 summary(Model_abdomen3)
-AIC(Model_abdomen3) #-5.58721
+AIC(Model_abdomen3) # 104.8869
 
+Model_abdomen3 <- lm(abdomen~Thorax+cumm_area, data = data33)
+car::Anova(Model_abdomen3, type=2)
+summary(Model_abdomen3)
+AIC(Model_abdomen3) ################## 98.40517
 
 
 
 #######cumm_area 
 #Explicative = Code_site, abdomen, surv_days, thorax
 
-Model_ailes1 <- lm(cumm_area~Code_site+surv_days+Thorax+abdomen, data = data11)
-AIC(Model_ailes1) # 181.3729
+Model_ailes1 <- lm(cumm_area~Code_site+surv_days+Thorax+abdomen, data = data33)
+AIC(Model_ailes1) # 173.6354
 summary(Model_ailes1)
 car::Anova(Model_ailes1, type=2)
 
-Model_ailes2 <- lm(cumm_area~Code_site+Thorax+surv_days, data = data11)
-AIC(Model_ailes2) ###################### 179.4283
+Model_ailes2 <- lm(cumm_area~abdomen, data = data33)
+AIC(Model_ailes2) ###################### 167.0496
 summary(Model_ailes2)
 car::Anova(Model_ailes2, type=2)
 
-Model_ailes3 <- lm(cumm_area~Code_site+Thorax, data = data11)
-AIC(Model_ailes3) # 181.0478
+Model_ailes3 <- lm(cumm_area~Code_site+Thorax, data = data33)
+AIC(Model_ailes3) # 175.3338
 summary(Model_ailes3)
 car::Anova(Model_ailes2, type=2)
 
-
+Model_ailes4 <- lm(cumm_area~Thorax, data = data33)
+AIC(Model_ailes4) # 172.8396
+summary(Model_ailes3)
+car::Anova(Model_ailes2, type=2)
 
 
 #######surv_days
 #Explicative = Code_site, abdomen, cumm_area, thorax
 
 Model_survie1<-glm(surv_days~Code_site+abdomen+cumm_area+Thorax, data= data11, family=poisson, na.action = na.omit)
-AIC(Model_survie1) # 456.6961
+AIC(Model_survie1) #
 summary(Model_survie1)
 
-Model_survie2 = glmmTMB(surv_days~Code_site, data= data11, family=nbinom1)
-AIC(Model_survie2) #496.4658
+Model_survie2 = glmmTMB(surv_days~Code_site+abdomen+cumm_area+Thorax, data= data33, family=nbinom1)
+AIC(Model_survie2) #261.1316
 summary(Model_survie2)
 
-Model_survie3 = glmmTMB(surv_days~Code_site+abdomen+Thorax+cumm_area, data= data11, family=nbinom1)
-AIC(Model_survie3) #421.7386
+Model_survie3 = glmmTMB(surv_days~Code_site+abdomen+cumm_area, data= data33, family=nbinom1)
+AIC(Model_survie3) #259.1327
 summary(Model_survie3)
 
-Model_survie4 = glmmTMB(surv_days~Code_site+Thorax+cumm_area, data= data11, family=nbinom1)
-AIC(Model_survie4) ############## 419.836
+Model_survie4 = glmmTMB(surv_days~abdomen+cumm_area, data= data33, family=nbinom1)
+AIC(Model_survie4) ############## 253.5701
 summary(Model_survie4)
 car::Anova(Model_survie4, type=2)
+
+
+
+
+
 
 
 
@@ -234,23 +268,14 @@ plot(resid(Model_survie4)~fitted(Model_survie4), xlab="predicted values", ylab="
   abline(h=0, lty=2)
 
 
-
-
-
-
 Model_ailes2 <- lm(cumm_area~Code_site+Thorax+surv_days, data = data11)
 plot(resid(Model_ailes2)~fitted(Model_ailes2), xlab="predicted values", ylab="normalized residuals")+
   abline(h=0, lty=2)
 
 
-
-
 Model_abdomen2 <- lm(abdomen~Code_site+Thorax, data = data11)
 plot(resid(Model_abdomen2)~fitted(Model_abdomen2), xlab="predicted values", ylab="normalized residuals")+
   abline(h=0, lty=2)
-
-
-
 
 
 Model_thorax3 = lm(Thorax~Code_site+cumm_area+abdomen+surv_days, data = data11)
