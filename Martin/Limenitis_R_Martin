@@ -36,12 +36,6 @@ data33$`Area 3`=as.numeric(data33$`Area 3`)
 data33$`Area 4`=as.numeric(data33$`Area 4`)
 data33$cumm_area=(data33$`Area 1`+data33$`Area 2`+data33$`Area 3`+data33$`Area 4`)
 
-View(data33)
-
-summary(data33)
-head
-str(data33)
-describeBy(data33, group="Code_site")
 
 data33$Thorax=as.numeric(data33$Thorax)
 data33$abdomen=as.numeric(data33$abdomen)
@@ -49,8 +43,7 @@ data33$eggs=as.numeric(data33$eggs)
 data33$surv_days=as.numeric(data33$surv_days)
 data33$cumm_area=as.numeric(data33$cumm_area)
 
-table1 <- data33[,lapply(.SD, mean, na.rm=T), by=Code_site, .SDcols=c("Thorax", "abdomen", "cumm_area", "eggs", "surv_days")] 
-table1 #### Error: Must subset columns with a valid subscript vector.x Subscript `lapply(.SD, mean, na.rm = T)` has the wrong type `list`. i It must be logical, numeric, or character.
+
 
 ###### Thorax
 data33$Code_site=as.factor(data33$Code_site)
@@ -80,14 +73,16 @@ ggplot(data33,aes(Code_site,y=surv_days))+
                Code_site="1",
                colour="black") + xlab("Aire géographique") +ylab("Jours de survie")
 
+
+
 ######## normalitÃ© des donnÃ©es
 install.packages("bestNormalize")
 library(bestNormalize)
 require(bestNormalize)
 bestNormalize(data33$abdomen)
 data33$abdomen=sqrt(data33$abdomen)
-bestNormalize(data33$cumm_area)
-
+bestNormalize(data33$cumm_area) ################# je n'arrive pas a normaliser ces données
+data33$cumm_area=sqrt(data33$cumm_area)
 
 hist(data33$Thorax)
 hist(data33$abdomen)
@@ -96,8 +91,8 @@ hist(data33$surv_days)
 
 shapiro.test(data33$Thorax) # Distribution normal
 shapiro.test(data33$abdomen) # Distribution normal
-shapiro.test(data33$cumm_area2) # Distribution pas trÃ¨s normal
-view(data33)
+shapiro.test(data33$cumm_area) # Distribution pas trÃ¨s normal
+shapiro.test(data33$surv_days) ################# A normaliser ???
 
 bartlett.test(data33$Thorax, data33$Code_site) #pas assez de donnÃ©es dans certaines macro area
 bartlett.test(abdomen, data = data33)
@@ -111,11 +106,18 @@ bartlett.test(cumm_area, data = data33)
 ####### Anova
 anova_Thorax <- aov(Thorax ~ Code_site, data = data33)
 summary(anova_Thorax) #il y a une tendance
+
 anova_abdomen <- aov(abdomen ~ Code_site, data = data33)
 summary(anova_abdomen) #pas significatif
+
 anova_cummarea <- aov(cumm_area ~ Code_site, data = data33)
 summary(anova_cummarea) # pas significatif
 
+anova_survie <- aov(surv_days ~ Code_site, data = data33)
+summary(anova_survie) # pas significatif
+        
+        
+        
 ####### kruskal.test
 kruskal.test(Thorax ~ Code_site, data = data33) #pas significatif -> pas de diffÃ©rence des moyennes
 kruskal.test(cumm_area ~ Code_site, data = data33)#pas significatif -> pas de diffÃ©rence des moyennes
@@ -265,14 +267,23 @@ car::Anova(Model_survie4, type=2)
 
 
 
+########################## vérification des résidus
+plot(fitted(Model_survie4), resid(Model_survie4), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0) #teste des résidus contre la prédiction des résidus
+plot(fitted(Model_ailes2), resid(Model_ailes2), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+plot(fitted(Model_abdomen3), resid(Model_abdomen3), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+plot(fitted(Model_thorax6), resid(Model_thorax6), col='steelblue', pch=16, xlab='Predicted Offers', ylab='Standardized Residuals', main='Negative Binomial'); abline(0,0)
+
 
 
 
 ############################# Plots
 
-Model_survie4 = glmmTMB(surv_days~Code_site+Thorax+cumm_area, data= data11, family=nbinom1)
+Model_survie4 = glmmTMB(surv_days~abdomen+cumm_area, data= data33, family=nbinom1)
 plot(resid(Model_survie4)~fitted(Model_survie4), xlab="predicted values", ylab="normalized residuals")+
   abline(h=0, lty=2)
+theme_set(theme_sjplot())
+plot_model(Model_survie4, type = "int", pred.type = c("fe"),axis.title = c("Number of trial","Predicted duration of the behaviour"),title = "",legend.title = "Type of behaviour")
+?plot_model
 
 
 Model_ailes2 <- lm(cumm_area~Code_site+Thorax+surv_days, data = data11)
@@ -295,15 +306,7 @@ plot(resid(Model_thorax3)~fitted(Model_thorax3), xlab="predicted values", ylab="
 
 ##############################################################################################################
 
-anova<-anova(Model_survie1, Model_survie2, Model_survie3, Model_survie4)
-anova
 
-ranova(Model_survie4)
-
-
-ggplot(Model_survie4)
-
-plot1 <- gglot(model1.1)
 
 # SM: this is to check if mean and var are similar. In this case, it seems that the variance is quite small compared to the mean: maybe the poisson distibution is not good and you will have to use a negbinomial
 mean(data11$surv_days)/var(data11$surv_days)
