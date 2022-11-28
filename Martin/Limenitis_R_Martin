@@ -28,7 +28,7 @@ View(data2)
 View(data3)
 
 
-################ Exploration des données############################
+################ Exploration des donnÃ©es############################
 data33 <- na.omit(data3)
 data33$`Area 1`=as.numeric(data33$`Area 1`)
 data33$`Area 2`=as.numeric(data33$`Area 2`)
@@ -55,25 +55,32 @@ table1 #### Error: Must subset columns with a valid subscript vector.x Subscript
 ###### Thorax
 data33$Code_site=as.factor(data33$Code_site)
 ggplot(data33,aes(Code_site,y=Thorax))+
-  geom_boxplot()
+  geom_boxplot(aes(fill=Code_site),  
+               Code_site="1",
+               colour="black") + xlab("Aire géographique") +ylab("Poids thorax")
 
 ###### abdomen
 data33$Code_site=as.factor(data33$Code_site)
 ggplot(data33,aes(Code_site,y=abdomen))+
-  geom_boxplot()
+  geom_boxplot(aes(fill=Code_site),  
+               Code_site="1",
+               colour="black") + xlab("Aire géographique") +ylab("Poids abdomen")
 
 ###### area
 data33$Code_site=as.factor(data33$Code_site)
 ggplot(data33,aes(Code_site,y=cumm_area))+
-  geom_boxplot()
-
+  geom_boxplot(aes(fill=Code_site),  
+               Code_site="1",
+               colour="black") + xlab("Aire géographique") +ylab("Surfaice des ailes")
 
 ###### Survie
 data33$Code_site=as.factor(data33$Code_site)
 ggplot(data33,aes(Code_site,y=surv_days))+
-  geom_boxplot()
+  geom_boxplot(aes(fill=Code_site),  
+               Code_site="1",
+               colour="black") + xlab("Aire géographique") +ylab("Jours de survie")
 
-######## normalité des données
+######## normalitÃ© des donnÃ©es
 install.packages("bestNormalize")
 library(bestNormalize)
 require(bestNormalize)
@@ -89,17 +96,17 @@ hist(data33$surv_days)
 
 shapiro.test(data33$Thorax) # Distribution normal
 shapiro.test(data33$abdomen) # Distribution normal
-shapiro.test(data33$cumm_area2) # Distribution pas très normal
+shapiro.test(data33$cumm_area2) # Distribution pas trÃ¨s normal
 view(data33)
 
-bartlett.test(data33$Thorax, data33$Code_site) #pas assez de données dans certaines macro area
+bartlett.test(data33$Thorax, data33$Code_site) #pas assez de donnÃ©es dans certaines macro area
 bartlett.test(abdomen, data = data33)
 bartlett.test(cumm_area, data = data33)
 
 
 
 
-############ Testes non paramétrique  ########### car distribution gaussienne et non normal
+############ Testes non paramÃ©trique  ########### car distribution gaussienne et non normal
 
 ####### Anova
 anova_Thorax <- aov(Thorax ~ Code_site, data = data33)
@@ -110,15 +117,15 @@ anova_cummarea <- aov(cumm_area ~ Code_site, data = data33)
 summary(anova_cummarea) # pas significatif
 
 ####### kruskal.test
-kruskal.test(Thorax ~ Code_site, data = data33) #pas significatif -> pas de différence des moyennes
-kruskal.test(cumm_area ~ Code_site, data = data33)#pas significatif -> pas de différence des moyennes
-kruskal.test(abdomen ~ Code_site, data = data33) #pas significatif -> pas de différence des moyennes
+kruskal.test(Thorax ~ Code_site, data = data33) #pas significatif -> pas de diffÃ©rence des moyennes
+kruskal.test(cumm_area ~ Code_site, data = data33)#pas significatif -> pas de diffÃ©rence des moyennes
+kruskal.test(abdomen ~ Code_site, data = data33) #pas significatif -> pas de diffÃ©rence des moyennes
 
 
 
-############# Modèle linéaire généralisé ######################
+############# ModÃ¨le linÃ©aire gÃ©nÃ©ralisÃ© ######################
 
-#correlation entre les données
+#correlation entre les donnÃ©es
 require(Hmisc)
 require(corrplot)
 correlation_thorax <- rcorr(data33$Thorax,data33$Code_site, type = "spearman") 
@@ -139,7 +146,7 @@ correlation_survie <- rcorr(data33$surv_days,data33$Code_site, type = "spearman"
 correlation_survie
 corrplot(correlation_thorax$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
 
-#chercher les valeurs extrêmes
+#chercher les valeurs extrÃªmes
 dotchart(data33$Thorax, main="Thorax", group=data33$Code_site)
 dotchart(data33$abdomen, main="abdomen", group=data33$Code_site)
 dotchart(data33$cumm_area, main="area", group=data33$Code_site)
@@ -179,7 +186,7 @@ Model_thorax6 = lm(Thorax~cumm_area+abdomen, data = data33)
 car::Anova(Model_thorax6, type=2)
 summary(Model_thorax6)
 AIC(Model_thorax6) ################ 200.7993
-
+fisher(Model_thorax6)
 
 
 
