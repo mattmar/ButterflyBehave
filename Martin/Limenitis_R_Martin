@@ -3,7 +3,9 @@ setwd("D:/Master BOE/Q2/Memoir/Stat")
 install.packages("corrr")
 install.packages("glmmTMB")
 install.packages("AICcmodavg")
+install.packages("dplyr")
 
+library(dplyr)
 library("readxl")
 library("ggplot2")
 library("lme4")
@@ -21,89 +23,69 @@ require(glmmTMB)
 library(AICcmodavg)
 library(ggplot2)
 
-data1=read_excel("./DONNE.xlsx", sheet = 1)
-data2=read_excel("./DONNE.xlsx", sheet = 2)
-data3=read_excel("./DONNE2.xlsx", sheet = 3)
 
-View(data1)
-View(data2)
+data3=read_excel("./DONNE6.xlsx", sheet = 3)
+
 View(data3)
 
 
 ################ Exploration des donnÃ©es############################
-data33 <- na.omit(data3)
-data33$`Area 1`=as.numeric(data33$`Area 1`)
-data33$`Area 2`=as.numeric(data33$`Area 2`)
-data33$`Area 3`=as.numeric(data33$`Area 3`)
-data33$`Area 4`=as.numeric(data33$`Area 4`)
-data33$cumm_area=(data33$`Area 2`+data33$`Area 4`)
-data33$cumm_area=as.numeric(data33$cumm_area)
-
-View(data33)
-
-summary(data33)
-head
-str(data33)
-describeBy(data33, group="Code_site")
-
-data33$Thorax=as.numeric(data33$Thorax)
-data33$abdomen=as.numeric(data33$abdomen)
-data33$eggs=as.numeric(data33$eggs)
-data33$surv_days=as.numeric(data33$surv_days)
+data3$`Area 1`=as.numeric(data3$`Area 1`)
+data3$`Area 2`=as.numeric(data3$`Area 2`)
+data3$`Area 3`=as.numeric(data3$`Area 3`)
+data3$`Area 4`=as.numeric(data3$`Area 4`)
+data3$`Ratio_Abdomen/Thorax`=as.numeric(data3$`Ratio_Abdomen/Thorax`)
+data3$Thorax=as.numeric(data3$Thorax)
+data3$abdomen=as.numeric(data3$abdomen)
+data3$eggs=as.numeric(data3$eggs)
+data3$surv_days=as.numeric(data3$surv_days)
+data3$Code_site=as.factor(data3$Code_site)
 
 
-table1 <- data33[,lapply(.SD, mean, na.rm=T), by=Code_site, .SDcols=c("Thorax", "abdomen", "cumm_area", "eggs", "surv_days")] 
-table1 #### Error: Must subset columns with a valid subscript vector.x Subscript `lapply(.SD, mean, na.rm = T)` has the wrong type `list`. i It must be logical, numeric, or character.
+#data3$cumm_area=(data3$`Area 1`+data3$`Area 4`)
+#data3$cumm_area=as.numeric(data3$cumm_area)
+
+
+
+View(data3)
+summary(data3)
+str(data3)
+
 
 
 ###### Thorax
-data33$Code_site=as.factor(data33$Code_site)
-ggplot(data33,aes(Code_site,y=Thorax))+
+ggplot(data3,aes(Code_site,y=Thorax))+
   geom_boxplot(aes(fill=Code_site),  
                Code_site="1",
                colour="black") + xlab("Aire géographique") +ylab("Poids thorax")
 
 ###### abdomen
-data33$Code_site=as.factor(data33$Code_site)
-ggplot(data33,aes(Code_site,y=abdomen))+
+ggplot(data3,aes(Code_site,y=abdomen))+
   geom_boxplot(aes(fill=Code_site),  
                Code_site="1",
                colour="black") + xlab("Aire géographique") +ylab("Poids abdomen")
 
+
+##### Ratio 
+ggplot(data3,aes(Code_site,y=`Ratio_Abdomen/Thorax`))+
+  geom_boxplot(aes(fill=Code_site),  
+               Code_site="1",
+               colour="black") + xlab("Aire géographique") +ylab("`Ratio Abdomen/Thorax`")
+
+
 ###### area
-data33$Code_site=as.factor(data33$Code_site)
-ggplot(data33,aes(Code_site,y=cumm_area))+
+ggplot(data3,aes(Code_site,y=`Area 1`))+
   geom_boxplot(aes(fill=Code_site),  
                Code_site="1",
-               colour="black") + xlab("Aire géographique") +ylab("Surfaice des ailes")
-
-ggplot(data33,aes(Code_site,y=`Area 1`))+
-  geom_boxplot(aes(fill=Code_site),  
-               Code_site="1",
-               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile antérieur droite")
-
-ggplot(data33,aes(Code_site,y=`Area 2`))+
-  geom_boxplot(aes(fill=Code_site),  
-               Code_site="1",
-               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile antérieur gauche")
-
-ggplot(data33,aes(Code_site,y=`Area 3`))+
-  geom_boxplot(aes(fill=Code_site),  
-               Code_site="1",
-               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile postérieur droite")
-
-ggplot(data33,aes(Code_site,y=`Area 4`))+
-  geom_boxplot(aes(fill=Code_site),  
-               Code_site="1",
-               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile postérieur gauche")
+               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile antérieure droite")
 
 
 ###### Survie
-data33$Code_site=as.factor(data33$Code_site)
-ggplot(data33,aes(Code_site,y=surv_days))+
+ggplot(data3,aes(Code_site,y=surv_days))+
   geom_boxplot(aes(fill=Code_site),  
                Code_site="1",
                colour="black") + xlab("Aire géographique") +ylab("Jours de survie")
+
 
 
 
@@ -115,35 +97,44 @@ require(bestNormalize)
 bestNormalize(data33$abdomen)
 bestNormalize(data33$cumm_area)
 
-hist(data33$Thorax)
-hist(data33$abdomen)
-hist(data33$cumm_area)
-hist(data33$`Area 1`)
-hist(data33$`Area 2`)
-hist(data33$`Area 3`)
-hist(data33$`Area 4`)
-hist(data33$surv_days)
 
-shapiro.test(data33$Thorax) # Distribution normal
-shapiro.test(data33$abdomen) # Distribution normal
-shapiro.test(data33$cumm_area)# Distribution pas trÃ¨s normal
-shapiro.test(data33$`Area 1`)
-shapiro.test(data33$`Area 2`)
-shapiro.test(data33$`Area 3`)
-shapiro.test(data33$`Area 4`)
+#chercher les valeurs extrÃªmes
+dotchart(data3$Thorax, main="Thorax", group=data3$Code_site)
+dotchart(data3$`Ratio_Abdomen/Thorax`, main="`Ratio_Abdomen/Thorax`", group=data3$Code_site)
+dotchart(data3$abdomen, main="abdomen", group=data3$Code_site)
+dotchart(data3$`Area 1`, main="Aile anterieure droite", group=data3$Code_site)
+dotchart(data3$`Area 2`, main="Aile anterieure gauche", group=data3$Code_site)
+dotchart(data3$`Area 3`, main="Aile postérieure droite", group=data3$Code_site)
+dotchart(data3$`Area 4`, main="Aile postérieure gauche", group=data3$Code_site)
 
-data33$abdomen=sqrt(data33$abdomen)
-#data33$cumm_area=sqrt(data33$cumm_area)
-#data33$`Area 1`=sqrt(data33$`Area 1`)
-data33$`Area 2`= (data33$`Area 2`- mean(data33$`Area 2`))/sd(data33$`Area 2`)
-data33$cum_area=(data33$cumm_area - mean(data33$cumm_area))/sd(data33$cumm_area)
+#### Histograme distribution variable
+hist(data3$Thorax)
+hist(data3$abdomen)
+hist(data3$`Area 1`)
+hist(data3$`Area 2`)
+hist(data3$`Area 3`)
+hist(data3$`Area 4`)
+hist(data3$surv_days)
+hist(data3$`Ratio_Abdomen/Thorax`)
 
 
-view(data33)
+###test de shapiro
+shapiro.test(data3$Thorax) # Distribution normal
+shapiro.test(data3$abdomen) # Distribution normal
+shapiro.test(data3$`Ratio_Abdomen/Thorax`)# normal
+shapiro.test(data3$`Area 1`)# normal
+shapiro.test(data3$`Area 2`)
+shapiro.test(data3$`Area 3`)
+shapiro.test(data3$`Area 4`) # normal
 
-bartlett.test(data33$Thorax, data33$Code_site) #pas assez de donnÃ©es dans certaines macro area
-bartlett.test(abdomen, data = data33)
-bartlett.test(cumm_area, data = data33)
+
+#####normalisation
+#data3$abdomen=sqrt(data3$abdomen)
+#data3$`Ratio_Abdomen/Thorax`=sqrt(data3$`Ratio_Abdomen/Thorax`)
+#data3$`Area 2`= (data3$`Area 2`- mean(data3$`Area 2`))/sd(data3$`Area 2`)
+#data33$cum_area=(data33$cumm_area - mean(data33$cumm_area))/sd(data33$cumm_area)
+
+
 
 
 
@@ -151,23 +142,30 @@ bartlett.test(cumm_area, data = data33)
 ############ Testes non paramÃ©trique  ########### car distribution gaussienne et non normal
 
 ####### Anova
-anova_Thorax <- aov(Thorax ~ Code_site, data = data33)
-summary(anova_Thorax) #il y a une tendance
+anova_Thorax <- aov(Thorax ~ Code_site, data = data3)
+summary(anova_Thorax) #0.0162 * -> légèrement significatif
 
-anova_abdomen <- aov(abdomen ~ Code_site, data = data33)
-summary(anova_abdomen) #pas significatif
+anova_abdomen <- aov(abdomen ~ Code_site, data = data3)
+summary(anova_abdomen) #0.0238 * -> légèrement significatif
 
-anova_cummarea <- aov(cumm_area ~ Code_site, data = data33)
-summary(anova_cummarea) # pas significatif
+anova_survie <- aov(surv_days ~ Code_site, data = data3)
+summary(anova_survie) # 0.767-> pas significatif
 
-anova_survie <- aov(surv_days ~ Code_site, data = data33)
-summary(anova_survie)
+anova_Area1 <- aov(`Area 1` ~ Code_site, data = data3)
+summary(anova_Area1) # 0.184 -> pas significatif
+
+anova_ratio <- aov(`Ratio_Abdomen/Thorax` ~ Code_site, data = data3)
+summary(anova_ratio) # 0.245 -> pas significatif
 
 
-####### kruskal.test
-kruskal.test(Thorax ~ Code_site, data = data33) #pas significatif -> pas de diffÃ©rence des moyennes
-kruskal.test(cumm_area ~ Code_site, data = data33)#pas significatif -> pas de diffÃ©rence des moyennes
-kruskal.test(abdomen ~ Code_site, data = data33) #pas significatif -> pas de diffÃ©rence des moyennes
+
+####### kruskal.test = diffÃ©rence des moyennes
+kruskal.test(Thorax ~ Code_site, data = data3) #0.02348 -> légèrement significatif
+kruskal.test(`Area 1` ~ Code_site, data = data3)#0.3044 -> pas significatif 
+kruskal.test(abdomen ~ Code_site, data = data3) #0.06336 -> pas significatif
+kruskal.test(`Ratio_Abdomen/Thorax` ~ Code_site, data = data3)#0.2633 -> pas significatif
+kruskal.test(surv_days ~ Code_site, data = data3)#0.4391 -> pas significatif
+
 
 
 
@@ -194,125 +192,197 @@ correlation_survie <- rcorr(data33$surv_days,data33$Code_site, type = "spearman"
 correlation_survie
 corrplot(correlation_thorax$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
 
-#chercher les valeurs extrÃªmes
-dotchart(data33$Thorax, main="Thorax", group=data33$Code_site)
-dotchart(data33$abdomen, main="abdomen", group=data33$Code_site)
-dotchart(data33$cumm_area, main="area", group=data33$Code_site)
 
 
 
 ################## Build the model ##################
 
 #######Thorax 
-#Explicative = Code_site, cumm_area, surv_days, abdomen, eggs
+#Explicative = Code_site+`Area 1`+surv_days+abdomen+`Ratio_Abdomen/Thorax`
 
-Model_thorax1 = lmer(Thorax~Code_site+cumm_area+abdomen+surv_days+(1|Site), data = data33) 
-car::Anova(Model_thorax1, type=2)
+Model_thorax1 = lm(Thorax~Code_site+`Area 1`+abdomen+surv_days, data = data3) 
 summary(Model_thorax1)
-AIC(Model_thorax1) #205.0069
+AIC(Model_thorax1) #209.2994
+car::Anova(Model_thorax1, type=2)
 
-Model_thorax2 = lm(Thorax~Code_site+cumm_area+abdomen+surv_days, data = data33)
-car::Anova(Model_thorax2, type=2)
+Model_thorax2 = lm(Thorax~Code_site+`Area 1`+abdomen, data = data3) 
 summary(Model_thorax2)
-AIC(Model_thorax2) #
+AIC(Model_thorax2) #208.3423
+car::Anova(Model_thorax1, type=2)
 
-Model_thorax3 = lm(Thorax~Code_site+cumm_area+abdomen+surv_days, data = data33)
-car::Anova(Model_thorax3, type=2)
+
+
+Model_thorax3 = lm(Thorax~`Area 1`+abdomen, data = data3) 
 summary(Model_thorax3)
-AIC(Model_thorax3) #
+AIC(Model_thorax3) #################207.4042
+car::Anova(Model_thorax1, type=2)
+#abdomen -> 0.00103 **
+#`Area 1`-> 0.09021 .
 
-Model_thorax4 <-lm(Thorax~Code_site+(cumm_area*surv_days), data = data33)
-summary(M2)
-AIC(Model_thorax4)#
 
-Model_thorax5 = lm(Thorax~Code_site+cumm_area+abdomen, data = data33)
-car::Anova(Model_thorax5, type=2)
+
+Model_thorax4 = lm(Thorax~abdomen, data = data3) 
+summary(Model_thorax4)
+AIC(Model_thorax4) #208.4859
+car::Anova(Model_thorax1, type=2)
+
+Model_thorax5 = lm(Thorax~Code_site+abdomen, data = data3) 
 summary(Model_thorax5)
-AIC(Model_thorax5)# 204.1246
-
-Model_thorax6 = lm(Thorax~cumm_area+abdomen, data = data33)
-car::Anova(Model_thorax6, type=2)
-summary(Model_thorax6)
-AIC(Model_thorax6) ################ 200.7993
-fisher(Model_thorax6)
-
-
+AIC(Model_thorax5) #210.2291
+car::Anova(Model_thorax1, type=2)
 
 
 #######Abdomen 
-#Explicative = Code_site, cumm_area, surv_days, thorax, eggs
+#Explicative = Code_site, Area 1, surv_days, thorax, eggs
 
-
-Model_abdomen1 <- lm(abdomen~Code_site+surv_days+(Thorax*cumm_area), data = data33)
+Model_abdomen1 <- lm(abdomen~Code_site+surv_days+Thorax+`Area 1`, data = data3)
 car::Anova(Model_abdomen1, type=2)
 summary(Model_abdomen1)
-AIC(Model_abdomen1) #105.7307
+AIC(Model_abdomen1) #284.7762
 
-Model_abdomen2 <- lm(abdomen~Code_site+Thorax, data = data33)
+
+
+Model_abdomen2 <- lm(abdomen~surv_days+Thorax+`Area 1`, data = data3)
 car::Anova(Model_abdomen2, type=2)
 summary(Model_abdomen2)
-AIC(Model_abdomen2) # 119.7418
+AIC(Model_abdomen2) ###########280.2435
+#surv_days -> 0.045563 *  
+#Thorax -> 0.000549 ***
+#`Area 1` -> 0.000630 ***
 
-Model_abdomen3 <- lm(abdomen~Code_site+Thorax+cumm_area, data = data33)
+
+
+Model_abdomen3 <- lm(abdomen~Thorax+`Area 1`, data = data3)
 car::Anova(Model_abdomen3, type=2)
 summary(Model_abdomen3)
-AIC(Model_abdomen3) # 104.8869
-
-Model_abdomen3 <- lm(abdomen~Thorax+cumm_area, data = data33)
-car::Anova(Model_abdomen3, type=2)
-summary(Model_abdomen3)
-AIC(Model_abdomen3) ################## 98.40517
+AIC(Model_abdomen3) #282.6275
 
 
 
-#######cumm_area 
-#Explicative = Code_site, abdomen, surv_days, thorax
 
-Model_ailes1 <- lm(cumm_area~Code_site+surv_days+Thorax+abdomen, data = data33)
-AIC(Model_ailes1) # 173.6354
+
+####### aile
+#Explicative = Code_site+surv_days+abdomen+Thorax+`Ratio_Abdomen/Thorax`
+
+Model_ailes1 <- lm(`Area 1`~abdomen+Code_site+surv_days+Thorax, data = data3)
+AIC(Model_ailes1) #  7.714988
 summary(Model_ailes1)
 car::Anova(Model_ailes1, type=2)
 
-Model_ailes2 <- lm(cumm_area~abdomen, data = data33)
-AIC(Model_ailes2) ###################### 167.0496
+
+Model_ailes2 <- lm(`Area 1`~abdomen+Code_site+Thorax, data = data3)
+AIC(Model_ailes2) #  5.927973
 summary(Model_ailes2)
-car::Anova(Model_ailes2, type=2)
 
-Model_ailes3 <- lm(cumm_area~Code_site+Thorax, data = data33)
-AIC(Model_ailes3) # 175.3338
-summary(Model_ailes3)
-car::Anova(Model_ailes2, type=2)
 
-Model_ailes4 <- lm(cumm_area~Thorax, data = data33)
-AIC(Model_ailes4) # 172.8396
+
+
+Model_ailes3 <- lm(`Area 1`~abdomen+Thorax, data = data3)
+AIC(Model_ailes3) ################  1.052046
 summary(Model_ailes3)
-car::Anova(Model_ailes2, type=2)
+#abdomen   0.000514 ***
+# Thorax   0.090214 .
+
+
+
+Model_ailes4 <- lm(`Area 1`~abdomen, data = data3)
+AIC(Model_ailes4) #  2.13377
+summary(Model_ailes4)
+
+
+
+Model_ailes5 <- lm(`Area 1`~`Ratio_Abdomen/Thorax`+Code_site+surv_days, data = data3)
+AIC(Model_ailes5) #  22.57595
+summary(Model_ailes5)
+
+Model_ailes6 <- lm(`Area 1`~`Ratio_Abdomen/Thorax`+surv_days, data = data3)
+AIC(Model_ailes6) #  18.01213
+summary(Model_ailes6)
+
+Model_ailes7 <- lm(`Area 1`~`Ratio_Abdomen/Thorax`, data = data3)
+AIC(Model_ailes7) #  16.6283
+summary(Model_ailes7)
+# `Ratio_Abdomen/Thorax`  8.54e-05 ***
+
+
+Model_ailes8 <- lm(`Area 1`~`Ratio_Abdomen/Thorax`+Thorax, data = data3)
+AIC(Model_ailes8) #  1.086868
+summary(Model_ailes8)
+#`Ratio_Abdomen/Thorax`   0.000523 ***
+# Thorax   5.28e-05 ***
+
 
 
 #######surv_days
 #Explicative = Code_site, abdomen, cumm_area, thorax
 
-Model_survie1<-glm(surv_days~Code_site+abdomen+cumm_area+Thorax, data= data11, family=poisson, na.action = na.omit)
-AIC(Model_survie1) #
+Model_survie1<-glm(surv_days~abdomen+Code_site+`Area 1`+Thorax, data= data3, family=poisson, na.action = na.omit)
+AIC(Model_survie1) #349.4074
 summary(Model_survie1)
 
-Model_survie2 = glmmTMB(surv_days~Code_site+abdomen+cumm_area+Thorax, data= data33, family=nbinom1)
-AIC(Model_survie2) #261.1316
+Model_survie2<-glm(surv_days~abdomen+`Area 1`+Thorax, data= data3, family=poisson, na.action = na.omit)
+AIC(Model_survie2) #346.5233
 summary(Model_survie2)
 
-Model_survie3 = glmmTMB(surv_days~Code_site+abdomen+cumm_area, data= data33, family=nbinom1)
-AIC(Model_survie3) #259.1327
+Model_survie3<-glm(surv_days~abdomen+Thorax, data= data3, family=poisson, na.action = na.omit)
+AIC(Model_survie3) #345.1616
 summary(Model_survie3)
 
-Model_survie4 = glmmTMB(surv_days~abdomen+cumm_area, data= data33, family=nbinom1)
-AIC(Model_survie4) ############## 253.5701
+Model_survie3<-glm(surv_days~`Ratio_Abdomen/Thorax`, data= data3, family=poisson, na.action = na.omit)
+AIC(Model_survie3) #345.1616
+summary(Model_survie3)
+
+
+
+
+Model_survie4 = glmmTMB(surv_days~abdomen+Code_site+`Area 1`+Thorax, data= data3, family=nbinom1)
+AIC(Model_survie4) #279.7634
 summary(Model_survie4)
-car::Anova(Model_survie4, type=2)
+
+Model_survie5 = glmmTMB(surv_days~abdomen+Code_site+Thorax, data= data3, family=nbinom1)
+AIC(Model_survie5) #277.7835
+summary(Model_survie5)
+
+Model_survie6 = glmmTMB(surv_days~abdomen+Thorax, data= data3, family=nbinom1)
+AIC(Model_survie6) #270.6242
+summary(Model_survie6)
+
+Model_survie7 = glmmTMB(surv_days~abdomen, data= data3, family=nbinom1)
+AIC(Model_survie7) ###################268.9146
+summary(Model_survie7)
+#abdomen   0.01095 *
 
 
 
+Model_survie8 = glmmTMB(surv_days~Code_site+`Area 1`+`Ratio_Abdomen/Thorax`, data= data3, family=nbinom1)
+AIC(Model_survie8) #276.8233
+summary(Model_survie8)
+
+Model_survie9 = glmmTMB(surv_days~Code_site+`Ratio_Abdomen/Thorax`, data= data3, family=nbinom1)
+AIC(Model_survie9) #274.824
+summary(Model_survie9)
 
 
+Model_survie10 = glmmTMB(surv_days~`Ratio_Abdomen/Thorax`, data= data3, family=nbinom1)
+AIC(Model_survie10) #####################267.861
+summary(Model_survie10)
+#`Ratio_Abdomen/Thorax`   0.00767 **
+
+
+plot(Model_survie10)
+
+
+######### Ratio
+
+Model_ratio1 <- lm(`Ratio_Abdomen/Thorax`~`Area 1`+Code_site+surv_days, data = data3)
+AIC(Model_ratio1) # 25.66053
+summary(Model_ratio1)
+
+Model_ratio2 <- lm(`Ratio_Abdomen/Thorax`~`Area 1`+surv_days, data = data3)
+AIC(Model_ratio2) ########## 19.54983
+summary(Model_ratio2)
+#`Area 1`    8.35e-05 ***
+# surv_days   0.0282 *
 
 
 
@@ -341,17 +411,44 @@ plot(resid(Model_thorax3)~fitted(Model_thorax3), xlab="predicted values", ylab="
 
 
 
-##############################################################################################################
+
+
+
+
+########### Brouillon ###########################################################################################
 
 anova<-anova(Model_survie1, Model_survie2, Model_survie3, Model_survie4)
 anova
 
 ranova(Model_survie4)
-
+bartlett.test(data33$Thorax, data33$Code_site) #pas assez de donnÃ©es dans certaines macro area
+bartlett.test(abdomen, data = data33)
+bartlett.test(cumm_area, data = data33)
 
 ggplot(Model_survie4)
 
 plot1 <- gglot(model1.1)
+data33 <- na.omit(data3)
+summary(data3$`Area 1`)
+
+#ggplot(data33,aes(Code_site,y=`Area 2`))+
+#  geom_boxplot(aes(fill=Code_site),  
+#               Code_site="1",
+#               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile antérieur gauche")
+
+
+#ggplot(data33,aes(Code_site,y=`Area 3`))+
+#  geom_boxplot(aes(fill=Code_site),  
+#               Code_site="1",
+#               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile postérieur droite")
+
+
+#ggplot(data3,aes(Code_site,y=`Area 4`))+
+#  geom_boxplot(aes(fill=Code_site),  
+#               Code_site="1",
+#               colour="black") + xlab("Aire géographique") +ylab("Surfaice de l'aile postérieur gauche")
+
+
 
 # SM: this is to check if mean and var are similar. In this case, it seems that the variance is quite small compared to the mean: maybe the poisson distibution is not good and you will have to use a negbinomial
 mean(data11$surv_days)/var(data11$surv_days)
