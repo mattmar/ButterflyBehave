@@ -1,0 +1,610 @@
+setwd("D:/Master BOE/Q2/Memoir/Stat")
+
+if (!require("pacman")) 
+  install.packages("pacman")
+pacman::p_load(ggpubr, tidyverse, DescTools, bestNormalize, lme4, lmerTest, Hmisc, data.table, lubridate, rptR, sjPlot, kableExtra, corrplot, PerformanceAnalytics, factoextra, knitr, psych, car)
+
+install.packages("lmtest")
+install.packages("glmmTMB")
+
+library("readxl")
+library("ggplot2")
+library("lme4")
+library(tidyverse)
+library(corrr)
+library(data.table)
+library(lubridate)
+library(lmerTest)
+library(sjPlot)
+library(rptR)
+library(ggpubr)
+library(psych)
+library(car)
+library("lmtest")
+library(stats)
+require(glmmTMB)
+
+
+data1=read_excel("./DONNE7.xlsx", sheet = 1)
+
+
+data11 <- na.omit(data1)
+View(data11)
+
+################ Exploration des données############################
+
+data11$`Area 1`=as.numeric(data11$`Area 1`)
+data11$`Area 2`=as.numeric(data11$`Area 2`)
+data11$`Area 3`=as.numeric(data11$`Area 3`)
+data11$`Area 4`=as.numeric(data11$`Area 4`)
+
+data11$Plantes=as.numeric(data11$Plantes)
+data11$Code_site=as.factor(data11$Code_site)
+
+
+data11$`Ratio_Abdomen/Thorax`=as.numeric(data11$`Ratio_Abdomen/Thorax`)
+data11$`Area1/Poids_Total`=as.numeric(data11$`Area1/Poids_Total`)
+data11$`Area2/Poids_Total`=as.numeric(data11$`Area2/Poids_Total`)
+data11$`Area3/Poids_Total`=as.numeric(data11$`Area3/Poids_Total`)
+data11$`Area4/Poids_Total`=as.numeric(data11$`Area4/Poids_Total`)
+
+
+
+
+################################# normalité des données ########################"
+install.packages("bestNormalize")
+library(bestNormalize)
+require(bestNormalize)
+bestNormalize(data11$abdomen)
+
+
+hist(data11$Thorax, main="Poids du thorax")
+hist(data11$abdomen, main="Poids de l'abdomen")
+hist(data11$`Area 1`, main="Aile anterieure droite")
+hist(data11$`Area 2`, main="Aile anterieure gauche")
+hist(data11$`Area 3`, main="Aile postérieure droite")
+hist(data11$`Area 4`, main="Aile postérieure gauche")
+hist(data11$`Ratio_Abdomen/Thorax`, main="Ratio Abdomen/Thorax")
+hist(data11$`Area1/Poids_Total`, main="Aile anterieure droite/Poids_Total")
+hist(data11$`Area2/Poids_Total`, main="Aile anterieure gauche/Poids_Total")
+hist(data11$`Area3/Poids_Total`, main="Aile postérieure droite/Poids_Total")
+hist(data11$`Area4/Poids_Total`, main="Aile postérieure gauche/Poids_Total")
+
+hist(data11$Plantes)
+
+shapiro.test(data11$Plantes)
+
+
+shapiro.test(data11$Thorax) # Distribution normal
+shapiro.test(data11$abdomen) # Distribution non normal
+shapiro.test(data11$`Area 1`) # Distribution normal
+shapiro.test(data11$`Area 2`)
+shapiro.test(data11$`Area 3`)
+shapiro.test(data11$`Area 4`)
+shapiro.test(data11$`Ratio_Abdomen/Thorax`)
+shapiro.test(data11$`Area1/Poids_Total`)
+shapiro.test(data11$`Area2/Poids_Total`)
+shapiro.test(data11$`Area3/Poids_Total`)
+shapiro.test(data11$`Area4/Poids_Total`)
+
+
+dotchart(data11$`Area 1`, main="Aile anterieure droite", group=data11$Code_site)
+dotchart(data11$`Area 2`, main="Aile anterieure gauche", group=data11$Code_site)
+dotchart(data11$`Area 3`, main="Aile postérieure droite", group=data11$Code_site)
+dotchart(data11$`Area 4`, main="Aile postérieure gauche", group=data11$Code_site)
+
+
+dotchart(data11$Thorax, main="Thorax", group=data11$Code_site)
+dotchart(data11$abdomen, main="abdomen", group=data11$Code_site)
+
+
+#data11$abdomen=sqrt(data11$abdomen)
+#data11$`Area1/Poids_Total`=sqrt(data11$`Area1/Poids_Total`)
+#data11$`Area2/Poids_Total`=sqrt(data11$`Area2/Poids_Total`)
+#data11$`Area3/Poids_Total`=sqrt(data11$`Area3/Poids_Total`)
+#data11$`Area4/Poids_Total`=sqrt(data11$`Area4/Poids_Total`)
+
+
+
+
+bartlett.test(data11$Thorax, data11$Code_site) #pas assez de données dans certaines macro area
+bartlett.test(abdomen, data = data11)
+bartlett.test(cumm_area, data = data11)
+
+
+
+#data11$cumm_area=(data11$`Area 1`+data11$`Area 2`+data11$`Area 3`+data11$`Area 4`)
+
+
+######################## Model #######################
+
+
+###### Model 1 ###########
+Model1 = lm(`Ratio_Abdomen/Thorax`~Code_site, data = data11)
+summary(Model1)
+#Code_site2    0.327    
+#Code_site3    0.362    
+#Code_site4    0.184
+
+plot(resid(Model1)~fitted(Model1), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+
+
+### Résidus
+scatterplot(`Ratio_Abdomen/Thorax`~Code_site, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Ratio_Abdomen/Thorax`, data11$Code_site)
+
+#1 indépendance
+durbinWatsonTest(Model1) #0.89 -> indépendant des résidus
+acf(residuals(Model1), main="Regression IMC = f(poids)") #indépendance des résidus
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model1, which = 2) # -> pas normal
+shapiro.test(residuals(Model1)) # p-value = 0.0001143 -> pas normal
+hist(residuals(Model1),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model1) #p = 0.91971 -> variance homogène
+
+
+
+
+######### Model 2 #######
+Model2 = lm(`Ratio_Abdomen/Thorax`~Plantes, data = data11)
+summary(Model2)
+#Plantes   0.839  
+plot(resid(Model2)~fitted(Model2), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+
+
+### Résidus
+scatterplot(`Ratio_Abdomen/Thorax`~Plantes, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$abdomen/Thorax, data11$Plantes)
+
+#1 indépendance
+durbinWatsonTest(Model2) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model2), main="Regression IMC = f(poids)") #indépendance des résidus
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model2, which = 2) # ->  normal
+shapiro.test(residuals(Model2)) # p-value =  0.08107 ->  normal
+hist(residuals(Model2),col="yellow",freq=F)# ->  normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model2) #p =  0.55434 -> variance homogène
+
+
+
+
+######### Model 3 #######
+Model3 = lm(`Area1/Poids_Total`~Plantes, data = data11)
+summary(Model3)
+#Plantes   0.755   
+
+
+### Résidus
+plot(resid(Model2)~fitted(Model2), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area1/Poids_Total`~Plantes, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area1/Poids_Total`, data11$Plantes)
+
+#1 indépendance
+durbinWatsonTest(Model3) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model3), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model3, which = 2) # -> pas normal
+shapiro.test(residuals(Model3)) # p-value =  0.02426 -> pas normal
+hist(residuals(Model3),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model3) #p =  0.69808 -> variance homogène
+
+
+
+
+######### Model 4 #######
+Model4 = lm(`Area2/Poids_Total`~Plantes, data = data11)
+summary(Model4)
+#Plantes   0.644   
+
+
+### Résidus
+plot(resid(Model4)~fitted(Model4), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area2/Poids_Total`~Plantes, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area2/Poids_Total`, data11$Plantes)
+
+#1 indépendance
+durbinWatsonTest(Model4) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model4), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model4, which = 2) # -> pas normal
+shapiro.test(residuals(Model4)) # p-value =  0.02426 -> pas normal
+hist(residuals(Model4),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model4) #p =  0.41702 -> variance homogène
+
+
+
+
+
+######### Model 5 #######
+Model5 = lm(`Area3/Poids_Total`~Plantes, data = data11)
+summary(Model5)
+#Plantes   0.822 
+
+
+### Résidus
+plot(resid(Model5)~fitted(Model5), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area3/Poids_Total`~Plantes, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area3/Poids_Total`, data11$Plantes)
+
+#1 indépendance
+durbinWatsonTest(Model5) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model5), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model5, which = 2) # -> pas normal
+shapiro.test(residuals(Model5)) # p-value =  0.003386 -> pas normal
+hist(residuals(Model5),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model5) #p =  0.51322 -> variance homogène
+
+
+
+
+
+######### Model 6 #######
+Model6 = lm(`Area4/Poids_Total`~Plantes, data = data11)
+summary(Model6)
+#Plantes   0.63
+
+
+### Résidus
+plot(resid(Model6)~fitted(Model6), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area4/Poids_Total`~Plantes, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area4/Poids_Total`, data11$Plantes)
+
+#1 indépendance
+durbinWatsonTest(Model6) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model6), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model6, which = 2) # -> pas normal
+shapiro.test(residuals(Model6)) # p-value =  0.001806 -> pas normal
+hist(residuals(Model6),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model6) #p =  0.22558 -> variance homogène
+
+
+
+
+
+######### Model 7 #######
+Model7 = lm(`Area1/Poids_Total`~Code_site, data = data11)
+summary(Model7)
+#Code_site2    0.938    
+#Code_site3    0.421    
+#Code_site4    0.202  
+
+
+### Résidus
+plot(resid(Model7)~fitted(Model7), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area1/Poids_Total`~Code_site, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area1/Poids_Total`, data11$Code_site)
+
+#1 indépendance
+durbinWatsonTest(Model7) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model7), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model7, which = 2) # -> pas normal
+shapiro.test(residuals(Model7)) # p-value =  0.02468 -> pas normal
+hist(residuals(Model7),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model7) #p =  0.33398 -> variance homogène
+
+
+
+
+
+
+######### Model 8 #######
+Model8 = lm(`Area2/Poids_Total`~Code_site, data = data11)
+summary(Model8)
+#Code_site2     0.951    
+#Code_site3     0.515    
+#Code_site4     0.178  
+
+
+### Résidus
+plot(resid(Model8)~fitted(Model8), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area2/Poids_Total`~Code_site, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area2/Poids_Total`, data11$Code_site)
+
+#1 indépendance
+durbinWatsonTest(Model8) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model8), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model8, which = 2) # -> pas normal
+shapiro.test(residuals(Model8)) # p-value =  0.008881 -> pas normal
+hist(residuals(Model8),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model8) #p =  0.39885 -> variance homogène
+
+
+
+
+
+######### Model 9 #######
+Model9 = lm(`Area3/Poids_Total`~Code_site, data = data11)
+summary(Model9)
+#Code_site2     0.778    
+#Code_site3     0.362    
+#Code_site4     0.228  
+
+
+### Résidus
+plot(resid(Model9)~fitted(Model9), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area3/Poids_Total`~Code_site, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area3/Poids_Total`, data11$Code_site)
+
+#1 indépendance
+durbinWatsonTest(Model9) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model9), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model9, which = 2) # -> pas normal
+shapiro.test(residuals(Model9)) # p-value =  0.002126 -> pas normal
+hist(residuals(Model9),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model9) #p =  0.42736 -> variance homogène
+
+
+
+
+
+
+######### Model 10 #######
+Model10 = lm(`Area4/Poids_Total`~Code_site, data = data11)
+summary(Model10)
+#Code_site2     0.652    
+#Code_site3     0.556    
+#Code_site4     0.210  
+
+
+### Résidus
+plot(resid(Model10)~fitted(Model10), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`Area4/Poids_Total`~Code_site, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`Area4/Poids_Total`, data11$Code_site)
+
+#1 indépendance
+durbinWatsonTest(Model10) #  0 -> indépendant des résidus ??????????
+acf(residuals(Model10), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model10, which = 2) # -> pas normal
+shapiro.test(residuals(Model10)) # p-value =  0.001118 -> pas normal
+hist(residuals(Model10),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model10) #p =  0.42736 -> variance homogène
+
+
+
+
+
+######### Model 11 #######
+Model11 = glmmTMB(`surv_days`~Code_site, data = data11, family = nbinom1)
+summary(Model11)
+#Code_site2   0.65070    
+#Code_site3   0.00283 ** 
+#Code_site4   0.76337
+
+
+### Résidus
+plot(resid(Model11)~fitted(Model11), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`surv_days`~Code_site, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`surv_days`, data11$Code_site)
+
+#1 indépendance
+durbinWatsonTest(Model11) # Error in durbinWatsonTest.default(Model11) : requires vector of residuals
+acf(residuals(Model11), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model11, which = 2) # -> pas normal
+shapiro.test(residuals(Model11)) # p-value = 2.016e-08-> pas normal
+hist(residuals(Model11),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model11) # no applicable method for 'ncvTest' applied to an object of class "glmmTMB"
+
+
+
+
+
+
+
+######### Model 12 #######
+Model12 = glmmTMB(`surv_days`~Plantes, data = data11, family = nbinom1)
+summary(Model12)
+#Plantes      0.0369 * 
+
+
+### Résidus
+plot(resid(Model12)~fitted(Model12), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`surv_days`~Plantes, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`surv_days`, data11$Plantes)
+
+#1 indépendance
+durbinWatsonTest(Model12) # Error in durbinWatsonTest.default(Model11) : requires vector of residuals
+acf(residuals(Model12), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model12, which = 2) # -> pas normal
+shapiro.test(residuals(Model12)) # p-value = 2.367e-08-> pas normal
+hist(residuals(Model12),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model12) # no applicable method for 'ncvTest' applied to an object of class "glmmTMB"
+
+
+
+
+
+
+######### Model 13 #######
+Model13 = glmmTMB(`surv_days`~`Ratio_Abdomen/Thorax`, data = data11, family = nbinom1)
+summary(Model13)
+#`Ratio_Abdomen/Thorax` 0.793
+
+
+### Résidus
+plot(resid(Model13)~fitted(Model13), xlab="predicted values", ylab="normalized residuals")+
+  abline(h=0, lty=2)
+scatterplot(`surv_days`~`Ratio_Abdomen/Thorax`, data=data11, regLine=list(method=lm, lty=1, lwd=2, col="red"))
+cor.test(data11$`surv_days`, data11$`Ratio_Abdomen/Thorax`)
+
+#1 indépendance
+durbinWatsonTest(Model13) # Error in durbinWatsonTest.default(Model11) : requires vector of residuals
+acf(residuals(Model13), main="Regression IMC = f(poids)") #résidus non indépendant ?
+
+#2 normalité (test de Shapiro Wilk)
+plot(Model13, which = 2) # -> pas normal
+shapiro.test(residuals(Model13)) # p-value = 2.503e-09-> pas normal
+hist(residuals(Model13),col="yellow",freq=F)# -> pas normal
+
+# Variance des résidus (test de Breush-Pagan)
+ncvTest(Model13) # no applicable method for 'ncvTest' applied to an object of class "glmmTMB"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+summary(data11$eggs)
+head
+str(data11)
+describe.by(data11, group="Code_site")
+
+data11$Thorax=as.numeric(data11$Thorax)
+data11$abdomen=as.numeric(data11$abdomen)
+data11$eggs=as.numeric(data11$eggs)
+data11$surv_days=as.numeric(data11$surv_days)
+#data11$cumm_area=as.numeric(data11$cumm_area)
+
+
+###### Thorax
+data11$Code_site=as.factor(data11$Code_site)
+ggplot(data11,aes(Code_site,y=Thorax))+
+  geom_boxplot()+
+  xlab("Aire géographique") +ylab("Poids du thorax")
+
+###### abdomen
+data11$Code_site=as.factor(data11$Code_site)
+ggplot(data11,aes(Code_site,y=abdomen))+
+  geom_boxplot()+
+  xlab("Aire géographique") +ylab("Poids de l'abdomen")
+
+###### area
+data11$Code_site=as.factor(data11$Code_site)
+ggplot(data11,aes(Code_site,y=cumm_area))+
+  geom_boxplot()+
+  xlab("Aire géographique") +ylab("Surface des ailes")
+
+
+
+############ Testes non paramétrique  ########### car distribution gaussienne et non normal
+
+####### Anova
+anova_Thorax <- aov(Thorax ~ Code_site, data = data11)
+summary(anova_Thorax) #pas significatif
+anova_abdomen <- aov(abdomen ~ Code_site, data = data11)
+summary(anova_abdomen) #pas significatif
+anova_cummarea <- aov(cumm_area ~ Code_site, data = data11)
+summary(anova_cummarea) # pas significatif
+
+####### kruskal.test
+kruskal.test(Thorax ~ Code_site, data = data11) #pas significatif -> pas de différence des moyennes
+kruskal.test(cumm_area ~ Code_site, data = data11)#pas significatif -> pas de différence des moyennes
+kruskal.test(abdomen ~ Code_site, data = data11) #pas significatif -> pas de différence des moyennes
+
+
+
+
+
+############# Modèle linéaire généralisé ######################
+
+#correlation entre les données
+require(Hmisc)
+correlation <- rcorr(data11$Thorax,data11$Code_site, type = "spearman") ###Error in rcorr(Thorax, Code_site, type = "spearman") : could not find function "rcorr"
+correlation
+require(corrplot)
+corrplot(correlation$r, type="upper", order="hclust", p.mat=correlation$P, sig.level=0.01, insig="blank", tl.cex=0.7  ,tl.col="black",tl.srt=45)
+
+#chercher les valeurs extrêmes
+dotchart(data11$Thorax, main="Thorax", group=data11$Code_site)
+dotchart(data11$abdomen, main="abdomen", group=data11$Code_site)
+dotchart(data11$cumm_area, main="area", group=data11$Code_site)
+
+#normaliser les données
+require(bestNormalize)
+bestNormalize(data11$abdomen) ### Error in bestNormalize(data11$Thorax) : could not find function "bestNormalize"
+
+
+
+# Build the model
+
+#Réponse = Thorax 
+#Explicative = Code_site, cumm_area, surv_days, abdomen, eggs
+
+M1<-lmer(Thorax~Code_site+cumm_area+abdomen+eggs+surv_days+(1|Site), data = data11, REML = F) ###Error in model.frame.default(data = data11, drop.unused.levels = TRUE,  : object is not a matrixanova(M1)
+
+M1= lm(Thorax~Code_site+cumm_area+(abdomen*eggs)+surv_days, data = data11)
+car::Anova(M1, type=2)
+
+M2<-lm(Thorax~Code_site, data = data11)
+View(M2)
+
+model1<-glm(surv_days~Code_site, data= data11, family=poisson, na.action = na.omit)
+
+require(glmmTMB)
+
+model1.1 = glmmTMB(surv_days~Code_site, data= data11, family=nbinom1)
+summary(model1.1)
+
+# SM: this is to check if mean and var are similar. In this case, it seems that the variance is quite small compared to the mean: maybe the poisson distibution is not good and you will have to use a negbinomial
+mean(data11$surv_days)/var(data11$surv_days)
